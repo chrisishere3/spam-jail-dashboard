@@ -27,3 +27,9 @@ PYEOF
 
 npx wrangler pages deploy .cf-dist --project-name spam-jail-dashboard --branch main --commit-dirty=true
 rm -rf .cf-dist
+
+# The zone caches HTML; purge so the custom domain serves the new deploy.
+curl -s -X POST "https://api.cloudflare.com/client/v4/zones/7c374eca06864c3b609ea23a10c23e21/purge_cache" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+  --data '{"files":["https://spamjail.chris-as-is.com/","https://spamjail.chris-as-is.com/index.html"]}' >/dev/null
+echo "cache purged for spamjail.chris-as-is.com"
