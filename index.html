@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Health</title>
+<meta name="description" content="A free, open-source email deliverability dashboard. Your data stays in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23d4ff4a'/%3E%3Crect x='4' y='7' width='8' height='2' fill='%231a1a1a'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --ink-faint: #999;
+    --rule: #e5e5e5;
+    --accent: #d4ff4a;
+    --bg: #fafafa;
+    --card: #fff;
+    --ok: #3f5b1b;
+    --ok-bg: #eef3e6;
+    --ok-border: #d8e5c5;
+    --warn: #a05c0c;
+    --warn-bg: #fdf4e3;
+    --warn-border: #f1e2b3;
+    --hot: #d97706;
+    --track: #f0f0f0;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 56px; }
+
+  /* ---------- header ---------- */
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 0 0 6px;
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .domain-form { display: flex; gap: 8px; flex: 1; min-width: 260px; max-width: 440px; }
+  .domain-form input {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--card);
+    outline: none;
+  }
+  .domain-form input:focus { border-color: var(--ink); }
+  .domain-form button {
+    padding: 8px 15px;
+    border: 1px solid var(--ink);
+    border-radius: 7px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .domain-form button:hover { background: #000; }
+  .domain-form button:disabled { opacity: 0.5; cursor: default; }
+  .mode-pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: #eee;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .tagline { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
+  .tagline a { color: var(--ink-soft); }
+
+  /* ---------- receipt strip ---------- */
+  .receipt {
+    display: none;
+    background: var(--accent);
+    border: 1px solid #b8e030;
+    border-radius: 9px;
+    padding: 12px 40px 12px 16px;
+    margin: 0 0 16px;
+    font-size: 13.5px;
+    color: var(--ink);
+    position: relative;
+    line-height: 1.55;
+  }
+  .receipt.show { display: block; }
+  .receipt b { font-weight: 650; }
+  .receipt .dismiss {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    border: none;
+    background: none;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* ---------- the bento ---------- */
+  .dash {
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .dash-bar {
+    background: #f3f3f3;
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 14px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--rule);
+  }
+  .card { background: var(--card); padding: 16px 16px 14px; min-height: 150px; position: relative; display: flex; flex-direction: column; }
+  .card.compact { min-height: 108px; }
+  .card-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; padding-right: 58px; }
+  .card-h {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-family: var(--mono);
+  }
+  .chip {
+    font-size: 10px;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+    letter-spacing: 0.02em;
+  }
+  .ex-tag {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: #f3f3f3;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .card-body { flex: 1; }
+  .big { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+  .sub { font-size: 12px; color: var(--ink-soft); margin-top: 7px; line-height: 1.5; }
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: var(--ok-bg);
+    color: var(--ok);
+    border: 1px solid var(--ok-border);
+  }
+  .pill.warn { background: var(--warn-bg); color: #7a5a0e; border-color: var(--warn-border); }
+  .pill.bad { background: #fbeaea; color: #8f2020; border-color: #efc9c9; }
+  .card-foot { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .fix-link, .edit-link {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    text-decoration: none;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .fix-link:hover, .edit-link:hover { color: var(--ink); text-decoration: underline; }
+  .clickable-example { cursor: pointer; }
+  .clickable-example:hover { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  /* auth table */
+  .auth-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .auth-table td { padding: 5px 2px; border-bottom: 1px solid #f0f0f0; color: var(--ink); vertical-align: top; }
+  .auth-table tr:last-child td { border-bottom: none; }
+  .auth-table .dom { color: var(--ink-soft); font-family: var(--mono); overflow-wrap: break-word; padding-right: 8px; width: 46%; }
+  .auth-table .dom .found-tag { color: var(--ink-faint); font-size: 9.5px; white-space: nowrap; }
+  .auth-table .rm {
+    border: none; background: none; color: var(--ink-faint);
+    cursor: pointer; font-size: 12px; padding: 0 3px; line-height: 1;
+  }
+  .auth-table .rm:hover { color: var(--ink); }
+  .a-ok { color: var(--ok); font-weight: 700; white-space: nowrap; }
+  .a-bad { color: var(--warn); font-weight: 700; white-space: nowrap; }
+  .a-na { color: var(--ink-faint); font-weight: 600; white-space: nowrap; }
+  .auth-note { font-size: 10.5px; color: var(--warn); line-height: 1.45; padding-top: 2px; }
+  .auth-note.na { color: var(--ink-faint); }
+
+  /* rep bars */
+  .repbar { display: grid; grid-template-columns: minmax(44px, auto) 1fr 34px; gap: 8px; align-items: center; margin: 0 0 6px; font-size: 10.5px; color: var(--ink-soft); }
+  .repbar .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+  .repbar .track { background: var(--track); border-radius: 3px; height: 9px; overflow: hidden; }
+  .repbar .fill { background: var(--ink); height: 100%; border-radius: 3px; min-width: 2px; }
+  .repbar.hot .fill { background: var(--hot); }
+  .repbar .pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  /* trend */
+  .trend-svg { width: 100%; height: auto; display: block; }
+  .trend-tip {
+    position: absolute;
+    display: none;
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    pointer-events: none;
+    white-space: nowrap;
+    transform: translate(-50%, -130%);
+    z-index: 5;
+  }
+
+  /* target mini bar */
+  .target {
+    margin-top: 9px;
+    font-size: 10px;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+  }
+  .target .t-track { position: relative; background: var(--track); border-radius: 3px; height: 6px; margin: 3px 0 3px; overflow: visible; }
+  .target .t-fill { height: 100%; border-radius: 3px; background: var(--ink); }
+  .target .t-fill.over { background: var(--hot); }
+  .target .t-tick { position: absolute; top: -2px; width: 2px; height: 10px; background: var(--ink-soft); }
+
+  /* donut */
+  .donut-row { display: flex; gap: 14px; align-items: center; }
+
+  /* blocklists */
+  .bl-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin-bottom: 6px; flex-wrap: wrap; }
+  .bl-row .dom { font-family: var(--mono); color: var(--ink-soft); word-break: break-all; }
+  .bl-row a { color: var(--ink-soft); font-size: 10.5px; font-family: var(--mono); }
+  .bl-row select {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 2px 4px;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    color: var(--ink);
+    background: var(--card);
+    margin-left: auto;
+  }
+  .bl-row select.clean { color: var(--ok); }
+  .bl-row select.listed { color: var(--hot); font-weight: 700; }
+
+  /* content checklist */
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 5px; color: var(--ink); }
+  .check-row .mark { font-weight: 700; width: 14px; text-align: center; }
+  .check-row .mark.good { color: var(--ok); }
+  .check-row .mark.flag { color: var(--warn); }
+  .check-row .mark.unset { color: var(--ink-faint); }
+
+  /* kv rows (sending behavior) */
+  .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; margin-bottom: 4px; }
+  .kv .k { color: var(--ink-soft); }
+  .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* ---------- popover ---------- */
+  .pop-backdrop { position: fixed; inset: 0; display: none; z-index: 20; }
+  .pop-backdrop.show { display: block; }
+  .popover {
+    position: absolute;
+    z-index: 21;
+    width: min(330px, calc(100vw - 32px));
+    background: var(--card);
+    border: 1px solid var(--ink);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+    padding: 15px 16px 14px;
+  }
+  .popover h4 {
+    margin: 0 0 6px;
+    font-size: 10.5px;
+    font-family: var(--mono);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .popover .where { font-size: 12.5px; color: var(--ink); margin: 0 0 11px; line-height: 1.5; }
+  .popover label { display: block; font-size: 11px; font-family: var(--mono); color: var(--ink-soft); margin: 8px 0 3px; }
+  .popover input[type="number"], .popover input[type="text"], .popover select {
+    width: 100%;
+    padding: 6px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--ink);
+    background: var(--card);
+  }
+  .popover input:focus, .popover select:focus { border-color: var(--ink); outline: none; }
+  .pop-btns { display: flex; gap: 8px; margin-top: 13px; }
+  .pop-btns button {
+    padding: 6px 13px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pop-save { background: var(--ink); color: #fff; border: 1px solid var(--ink); }
+  .pop-save:hover { background: #000; }
+  .pop-cancel { background: var(--card); color: var(--ink-soft); border: 1px solid var(--rule); }
+  .pop-cancel:hover { border-color: var(--ink-soft); }
+  .pop-note { font-size: 11px; color: var(--ink-faint); margin-top: 9px; line-height: 1.45; }
+  .radio-row { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; margin: 6px 0; cursor: pointer; }
+  .radio-row input { margin-top: 3px; }
+
+  /* mailbox editor rows */
+  .mb-edit-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .mb-edit-row input.mb-label { flex: 1; }
+  .mb-edit-row input.mb-pct { width: 74px; }
+  .mb-edit-row .rm-row { border: none; background: none; color: var(--ink-faint); cursor: pointer; font-size: 14px; }
+  .add-row-btn { border: none; background: none; color: var(--ink-soft); font-size: 12px; font-family: var(--mono); cursor: pointer; padding: 2px 0; }
+  .add-row-btn:hover { color: var(--ink); }
+
+  /* ---------- toolbar + footer ---------- */
+  .toolbar {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    margin: 14px 2px 0;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    flex-wrap: wrap;
+  }
+  .toolbar button, .toolbar label.import-lbl {
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+  }
+  .toolbar button:hover, .toolbar label.import-lbl:hover { color: var(--ink); text-decoration: underline; }
+  .toolbar .note { color: var(--ink-faint); font-size: 11px; }
+  .footer {
+    margin-top: 34px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .footer a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 1px; }
+  .footer a:hover { color: var(--ink-soft); border-bottom-color: var(--ink-soft); }
+
+  .toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    z-index: 30;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .card { min-height: 0; }
+  }
+  @media (max-width: 540px) {
+    .grid { grid-template-columns: 1fr; }
+    .wrap { padding: 20px 14px 48px; }
+    .top { gap: 10px; }
+    .domain-form { max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="wordmark">Email Health</div>
+    <form class="domain-form" id="domainForm">
+      <input type="text" id="domainInput" placeholder="yourdomain.com" autocomplete="off" spellcheck="false" inputmode="url" aria-label="Your sending domain">
+      <button type="submit" id="checkBtn">Check my domain</button>
+    </form>
+    <span class="mode-pill" id="modePill">showing example data</span>
+  </div>
+  <p class="tagline">The deliverability dashboard from <a href="https://chris-as-is.com/projects/spam-jail">How to Get Out of Spam Jail</a>, DIY edition. Everything stays in your browser.</p>
+
+  <div class="receipt" id="receipt" role="status"></div>
+
+  <div class="dash">
+    <div class="dash-bar"><span>email health</span><span id="barRight">updated by you</span></div>
+    <div class="grid" id="grid">
+
+      <div class="card" id="card-verdict">
+        <div class="card-head"><span class="card-h">Verdict</span><span class="chip">computes itself</span></div>
+        <div class="card-body" id="body-verdict"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#the-rap-sheet">how this works &#8599;</a>
+          <span></span>
+        </div>
+      </div>
+
+      <div class="card" id="card-trend">
+        <div class="card-head"><span class="card-h">Bounce trend</span><span class="chip">one point per check-in</span></div>
+        <div class="card-body" id="body-trend"></div>
+        <div class="trend-tip" id="trendTip"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="trend">save a check-in</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-provider">
+        <div class="card-head"><span class="card-h">Provider verdict</span><span class="chip">needs Google Postmaster</span></div>
+        <div class="card-body" id="body-provider"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="provider">enter yours</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-auth">
+        <div class="card-head"><span class="card-h">Domain auth</span><span class="chip">automatic</span></div>
+        <div class="card-body" id="body-auth"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="auth">dkim selector</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-mailboxes">
+        <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-mailboxes"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="mailboxes">enter yours</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-list">
+        <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-list"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="list">enter yours</button>
+        </div>
+      </div>
+
+      <div class="card compact" id="card-blocklists">
+        <div class="card-head"><span class="card-h">Blocklists</span><span class="chip">2 min, no access needed</span></div>
+        <div class="card-body" id="body-blocklists"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists">how to fix &#8599;</a>
+          <span></span>
+        </div>
+      </div>
+
+      <div class="card compact" id="card-sending">
+        <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-sending"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="sending">enter yours</button>
+        </div>
+      </div>
+
+      <div class="card compact" id="card-content">
+        <div class="card-head"><span class="card-h">Email content</span><span class="chip">2 min, needs a recent email</span></div>
+        <div class="card-body" id="body-content"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="content">enter yours</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button id="btnCheckin">save a check-in</button>
+    <button id="btnExport">export JSON</button>
+    <label class="import-lbl" for="importFile">import JSON</label>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <button id="btnReset">start over</button>
+    <span class="note">saves automatically in this browser</span>
+  </div>
+
+  <div class="footer">Dashboard built by <a href="https://chris-as-is.com">@chris-as-is</a></div>
+
+</div>
+
+<div class="pop-backdrop" id="popBackdrop"></div>
+<div class="popover" id="popover" style="display:none"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   Spam Jail Dashboard
+   One file. No build. No server. Your data stays in this browser,
+   except DNS lookups sent to Cloudflare and Google DNS-over-HTTPS.
+   ============================================================ */
+
+const LS_KEY = 'spamjail_v1';
+
+/* ---------- state ---------- */
+
+function defaultState() {
+  return {
+    domain: null,            // primary domain, null = example mode
+    customSelector: null,
+    satellites: [],          // [{domain, removed}]
+    auth: null,              // {checkedAt, domains: [{domain, found, spf, dkim, dmarc, mx, notes}]}
+    stack: null,             // {primary: 'google'|'microsoft'|null, tools: [names], label}
+    receiptDismissed: false,
+    cards: {
+      list: null,            // {bounce, total, verified}
+      mailboxes: null,       // [{label, pct}]
+      sending: null,         // {perDay, daysPerWeek}
+      provider: null,        // {state:'data'|'lowvolume'|'nodashboard', spamRate, reputation}
+      blocklists: null,      // {domain: 'clean'|'listed'}
+      content: null          // {links, images, tracking, spamwords}
+    },
+    snapshots: []            // [{date, bounce, spamRate}]
+  };
+}
+
+let S = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return Object.assign(defaultState(), JSON.parse(raw));
+  } catch (e) { /* private mode or blocked storage, run in-memory */ }
+  return defaultState();
+}
+
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { /* in-memory only */ }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function anyRealData() {
+  return !!(S.domain || S.snapshots.length ||
+    Object.values(S.cards).some(v => v !== null && (typeof v !== 'object' || Object.keys(v).length)));
+}
+
+/* ---------- DNS over HTTPS ---------- */
+
+const DOH = [
+  (name, type) => `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`,
+  (name, type) => `https://dns.google/resolve?name=${encodeURIComponent(name)}&type=${type}`
+];
+
+async function dnsQuery(name, type) {
+  for (const url of DOH) {
+    try {
+      const r = await fetch(url(name, type), { headers: { accept: 'application/dns-json' } });
+      if (!r.ok) continue;
+      return await r.json();
+    } catch (e) { /* try the next resolver */ }
+  }
+  return null;
+}
+
+function txtRecords(resp) {
+  if (!resp || resp.Status !== 0 || !resp.Answer) return [];
+  return resp.Answer
+    .filter(a => a.type === 16)
+    .map(a => a.data.replace(/^"|"$/g, '').replace(/"\s*"/g, ''));
+}
+
+function mxRecords(resp) {
+  if (!resp || resp.Status !== 0 || !resp.Answer) return [];
+  return resp.Answer.filter(a => a.type === 15).map(a => a.data.toLowerCase());
+}
+
+/* ---------- the automatic check ---------- */
+
+const DKIM_SELECTORS = ['google', 'selector1', 'selector2', 's1', 's2', 'k1', 'mail', 'default', 'hs1', 'hs2'];
+
+async function checkAuth(domain, customSelector) {
+  const [mxResp, txtResp, dmarcResp] = await Promise.all([
+    dnsQuery(domain, 'MX'),
+    dnsQuery(domain, 'TXT'),
+    dnsQuery('_dmarc.' + domain, 'TXT')
+  ]);
+
+  const mx = mxRecords(mxResp);
+  const spfRecords = txtRecords(txtResp).filter(t => /^v=spf1/i.test(t));
+  const dmarcRecs = txtRecords(dmarcResp).filter(t => /^v=DMARC1/i.test(t));
+
+  // DKIM: probe common selectors. Any answer (TXT or CNAME) = observed.
+  const selectors = customSelector ? [customSelector, ...DKIM_SELECTORS] : DKIM_SELECTORS;
+  const probes = await Promise.all(selectors.map(sel => dnsQuery(`${sel}._domainkey.${domain}`, 'TXT')));
+  let dkimSelector = null;
+  probes.forEach((resp, i) => {
+    if (dkimSelector) return;
+    // A TXT answer or a CNAME at the selector both count as observed.
+    // (Microsoft and SendGrid selectors are CNAMEs, sometimes with dangling targets.)
+    if (resp && resp.Answer && resp.Answer.some(a => a.type === 16 || a.type === 5)) dkimSelector = selectors[i];
+  });
+
+  const notes = [];
+  const result = { domain, mx: mx.length > 0, spf: false, dkim: !!dkimSelector, dkimSelector, dmarc: false, notes };
+
+  if (spfRecords.length === 1) {
+    result.spf = true;
+    const spf = spfRecords[0].toLowerCase();
+    result.spfRaw = spfRecords[0];
+    const googleMx = mx.some(m => m.includes('google'));
+    if (googleMx && !spf.includes('_spf.google.com')) {
+      result.spf = false;
+      notes.push('mail runs through Google but SPF does not include it, so SPF fails on every send');
+    } else if (/\+all/.test(spf)) {
+      notes.push('SPF ends in +all, which allows anyone to send as you');
+    }
+  } else if (spfRecords.length > 1) {
+    result.spf = false;
+    notes.push('two SPF records found, receivers treat that as a fail');
+  } else {
+    notes.push('no SPF record');
+  }
+
+  if (dmarcRecs.length) {
+    result.dmarc = true;
+    const d = dmarcRecs[0];
+    const p = (d.match(/;\s*p\s*=\s*(\w+)/i) || [])[1];
+    const sp = (d.match(/sp\s*=\s*(\w+)/i) || [])[1];
+    const pct = (d.match(/pct\s*=\s*(\d+)/i) || [])[1];
+    const rua = /rua\s*=/i.test(d);
+    if (p && p.toLowerCase() === 'none') notes.push('DMARC policy is none, monitor only');
+    if (pct && Number(pct) < 100) notes.push(`DMARC covers ${pct}% of mail (pct=${pct})`);
+    if (sp && sp.toLowerCase() === 'none' && p && p.toLowerCase() !== 'none') notes.push('subdomains unprotected (sp=none)');
+    if (!rua) notes.push('DMARC reports go to nobody (no rua)');
+  } else {
+    notes.push('no DMARC record');
+  }
+
+  if (!mx.length) notes.push('no MX record, this domain cannot receive mail');
+
+  result.mxHosts = mx;
+  return result;
+}
+
+function detectStack(authResults) {
+  const allMx = authResults.flatMap(r => r.mxHosts || []).join(' ');
+  const allSpf = authResults.map(r => r.spfRaw || '').join(' ').toLowerCase();
+  let primary = null;
+  if (/google/.test(allMx)) primary = 'google';
+  else if (/protection\.outlook\.com/.test(allMx)) primary = 'microsoft';
+
+  const tools = [];
+  if (/hubspot/.test(allSpf)) tools.push('HubSpot');
+  if (/mktomail\.com/.test(allSpf)) tools.push('Marketo');
+  if (/_spf\.salesforce\.com/.test(allSpf)) tools.push('Salesforce');
+  if (/sendgrid\.net/.test(allSpf)) tools.push('SendGrid');
+  if (/mailgun\.org/.test(allSpf)) tools.push('Mailgun');
+  if (/secureserver\.net/.test(allSpf)) tools.push('GoDaddy default');
+
+  const label = primary === 'google' ? 'Google Workspace' : primary === 'microsoft' ? 'Microsoft 365' : null;
+  return { primary, tools, label };
+}
+
+async function sweepSatellites(domain) {
+  const brand = domain.replace(/\.[a-z.]+$/i, '');
+  const candidates = [
+    `get${brand}.com`, `try${brand}.com`, `${brand}hq.com`,
+    `${brand}.io`, `${brand}.co`, `${brand}.net`
+  ].filter(c => c !== domain);
+  const results = await Promise.all(candidates.map(async c => {
+    const resp = await dnsQuery(c, 'MX');
+    return mxRecords(resp).length ? c : null;
+  }));
+  return results.filter(Boolean);
+}
+
+async function runCheck(domain) {
+  const btn = document.getElementById('checkBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  try {
+    domain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    if (!/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+      toast('That does not look like a domain. Try something like acme.com');
+      return;
+    }
+
+    const newDomain = domain !== S.domain;
+    S.domain = domain;
+    if (newDomain) { S.satellites = []; S.receiptDismissed = false; }
+
+    const found = await sweepSatellites(domain);
+    const kept = new Set(S.satellites.filter(s => !s.removed).map(s => s.domain));
+    const removed = new Set(S.satellites.filter(s => s.removed).map(s => s.domain));
+    found.forEach(d => { if (!kept.has(d) && !removed.has(d)) S.satellites.push({ domain: d, removed: false }); });
+
+    const toCheck = [domain, ...S.satellites.filter(s => !s.removed).map(s => s.domain)];
+    const authResults = await Promise.all(toCheck.map(d => checkAuth(d, S.customSelector)));
+    S.auth = { checkedAt: new Date().toISOString(), domains: authResults };
+    S.stack = detectStack(authResults);
+
+    if (!S.cards.blocklists) S.cards.blocklists = {};
+
+    save();
+    renderReceipt();
+    render();
+  } catch (e) {
+    toast('The check failed. Your network may block DNS-over-HTTPS. Try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check my domain';
+  }
+}
+
+/* ---------- example data (the numbers from the blog post) ---------- */
+
+const EXAMPLE = {
+  verdict: { big: 'Getting healthier', sub: 'Bounce 2.4%, down from 7.4%.<br>All fixes holding.' },
+  trendPoints: [7.4, 6.9, 6.7, 9.8, 8.3, 6.4, 6.1, 5.6, 6.4, 4.9, 2.4],
+  provider: { pill: 'Reputation HIGH', sub: 'Postmaster spam rate 0.3%,<br>at the ceiling. Watching.' },
+  auth: [
+    { domain: 'primary domain', spf: true, dkim: true, dmarc: true, mx: true },
+    { domain: 'satellite 1', spf: true, dkim: true, dmarc: true, mx: true },
+    { domain: 'satellite 2', spf: false, dkim: true, dmarc: true, mx: true }
+  ],
+  authSub: 'One broken record, caught same day.',
+  mailboxes: [
+    { label: 'rep 01', pct: 22, hot: true }, { label: 'rep 02', pct: 16, hot: true },
+    { label: 'rep 03', pct: 7 }, { label: 'rep 04', pct: 3 }, { label: 'rep 05', pct: 2 }
+  ],
+  list: { sub: '125K contacts verified.<br>Dead ones stay out.', verified: 125000, total: 143000 },
+  sending: { perDay: 35, daysPerWeek: 5 },
+  content: { links: 1, images: 'none', tracking: 'on', spamwords: 'clean' }
+};
+
+/* ---------- stack-tailored instructions ---------- */
+
+function whereToFind(kind) {
+  const stack = S.stack || {};
+  const tool = (stack.tools || [])[0];
+  const toolHints = {
+    'HubSpot': 'In HubSpot it lives under Marketing, then Email, then Analyze. Sequences have their own stats page.',
+    'Marketo': 'In Marketo look at Email Insights.',
+    'Salesforce': 'In Salesforce check your email send reports.',
+    'SendGrid': 'In SendGrid it is under Stats, then Overview.',
+    'Mailgun': 'In Mailgun it is under Analytics.'
+  };
+  const toolLine = tool && toolHints[tool] ? ' ' + toolHints[tool] : '';
+  switch (kind) {
+    case 'list':
+      return 'Your sending tool has these numbers, not your inbox. Take the last 30 days.' + toolLine;
+    case 'mailboxes':
+      return 'Per-mailbox bounce lives in your sending tool, usually a sender or mailbox report. Last 30 days.' + toolLine;
+    case 'sending':
+      return 'Rough averages are fine. Count what one mailbox sends on a normal day.' + toolLine;
+    case 'provider':
+      if (stack.primary === 'microsoft') return 'You send through Microsoft 365. Google Postmaster only covers mail to Gmail, and Microsoft has no equivalent dashboard.';
+      return 'Set up postmaster.google.com for your domain. It needs a DNS record to verify, so grab whoever holds DNS access. Spam rate is on the first chart.';
+    case 'content':
+      return 'Open the last real email one of your mailboxes sent. Count the links, look for images, check if link tracking is on.';
+    default:
+      return '';
+  }
+}
+
+/* ---------- rendering ---------- */
+
+function realCardStatus() {
+  // which cards hold real data, which are honestly unavailable, which are missing
+  const c = S.cards;
+  const auth = !!S.auth;
+  const provider = c.provider;
+  const providerReal = !!(provider && provider.state === 'data' && provider.spamRate != null);
+  const providerUnavailable = !!(provider && provider.state !== 'data');
+  const bl = c.blocklists && Object.values(c.blocklists).some(v => v === 'clean' || v === 'listed');
+  return {
+    auth,
+    blocklists: !!bl,
+    list: !!(c.list && c.list.bounce != null),
+    mailboxes: !!(c.mailboxes && c.mailboxes.length),
+    sending: !!(c.sending && c.sending.perDay != null),
+    provider: providerReal,
+    providerUnavailable,
+    content: !!c.content
+  };
+}
+
+function computeVerdict() {
+  const st = realCardStatus();
+  const realCount = ['auth', 'blocklists', 'list', 'mailboxes', 'sending', 'provider', 'content']
+    .filter(k => st[k]).length + (st.providerUnavailable ? 1 : 0);
+
+  const missing = [];
+  if (!st.auth) missing.push('no domain check yet');
+  if (!st.provider && !st.providerUnavailable) missing.push('no provider data yet');
+  if (!st.list) missing.push('no bounce rate yet');
+  if (!st.blocklists) missing.push('blocklists unchecked');
+  if (!st.mailboxes) missing.push('no mailbox data yet');
+  if (!st.sending) missing.push('no sending numbers yet');
+  if (!st.content) missing.push('content unchecked');
+
+  if (realCount < 4) {
+    return { ready: false, realCount, missing };
+  }
+
+  const issues = [];
+  let severe = false;
+  if (st.auth) {
+    S.auth.domains.forEach(d => {
+      if (!d.spf || !d.dmarc) issues.push(`auth broken on ${d.domain}`);
+    });
+  }
+  if (st.blocklists) {
+    Object.entries(S.cards.blocklists).forEach(([dom, v]) => {
+      if (v === 'listed') { issues.push(`${dom} is on a blocklist`); severe = true; }
+    });
+  }
+  if (st.list) {
+    const b = S.cards.list.bounce;
+    if (b > 5) { issues.push(`bounce ${b}%, way over the 2% line`); severe = true; }
+    else if (b > 2) issues.push(`bounce ${b}%, over the 2% line`);
+  }
+  if (st.mailboxes) {
+    const hot = S.cards.mailboxes.filter(m => m.pct > 5);
+    if (hot.length) issues.push(`${hot.length} mailbox${hot.length > 1 ? 'es' : ''} bouncing hard`);
+  }
+  if (st.provider) {
+    const p = S.cards.provider;
+    if (p.spamRate > 0.3) issues.push(`spam rate ${p.spamRate}%, over Google's 0.3% ceiling`);
+    if (p.reputation && /low|bad/i.test(p.reputation)) { issues.push(`domain reputation ${p.reputation}`); severe = true; }
+  }
+  if (st.sending && S.cards.sending.perDay > 50) issues.push(`${S.cards.sending.perDay} sends per mailbox per day, over the ~50 heuristic`);
+  if (st.content) {
+    const flags = contentFlags(S.cards.content).filter(f => f.flag).length;
+    if (flags >= 2) issues.push('content has spam signals');
+  }
+
+  let big, tier;
+  if (severe || issues.length >= 3) { big = 'In trouble'; tier = 'bad'; }
+  else if (issues.length) { big = 'Needs attention'; tier = 'warn'; }
+  else { big = 'Looking healthy'; tier = 'ok'; }
+
+  return { ready: true, realCount, missing, issues, big, tier };
+}
+
+function renderVerdict() {
+  const el = document.getElementById('body-verdict');
+  const v = computeVerdict();
+  if (!v.ready) {
+    setTag('card-verdict', true);
+    const entered = v.realCount;
+    el.innerHTML = `<div class="big">${EXAMPLE.verdict.big}</div>
+      <div class="sub">${EXAMPLE.verdict.sub}</div>
+      <div class="sub" style="color:var(--ink-faint)">Yours computes once 4 cards hold real data. ${entered ? entered + ' so far.' : ''}</div>`;
+    return;
+  }
+  setTag('card-verdict', false);
+  const parts = [];
+  if (v.issues.length) parts.push(v.issues.slice(0, 3).map(esc).join('. ') + '.');
+  else parts.push('No red flags in the data entered. Green auth means passing records, not inbox placement.');
+  if (v.missing.length) parts.push(`<span style="color:var(--ink-faint)">Still missing: ${esc(v.missing.slice(0, 2).join(', '))}.</span>`);
+  el.innerHTML = `<div class="big">${v.big}</div><div class="sub">${parts.join('<br>')}</div>`;
+}
+
+function trendSvg(points, opts) {
+  // points: array of numbers (bounce %). Draws the lime-over-black line from the blog.
+  const W = 220, H = 60, padX = 16, padTop = 8, baseline = 54;
+  const max = Math.max(10, ...points) * 1.1;
+  const step = points.length > 1 ? (W - padX * 2 - 8) / (points.length - 1) : 0;
+  const coords = points.map((p, i) => {
+    const x = padX + 4 + i * step;
+    const y = baseline - (p / max) * (baseline - padTop);
+    return [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
+  });
+  const pts = coords.map(c => c.join(',')).join(' ');
+  const single = points.length === 1;
+  return `<svg class="trend-svg" viewBox="0 0 ${W} ${H}" data-coords='${JSON.stringify(coords)}' data-vals='${JSON.stringify(points)}' ${opts && opts.dates ? `data-dates='${JSON.stringify(opts.dates)}'` : ''}>
+    <line x1="${padX}" y1="${baseline}" x2="${W - 8}" y2="${baseline}" stroke="#e5e5e5" stroke-width="1"/>
+    ${single
+      ? `<circle cx="${coords[0][0]}" cy="${coords[0][1]}" r="4.5" fill="#d4ff4a" stroke="#1a1a1a" stroke-width="1.5"/>`
+      : `<polyline points="${pts}" fill="none" stroke="#d4ff4a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+         <polyline points="${pts}" fill="none" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`}
+  </svg>`;
+}
+
+function renderTrend() {
+  const el = document.getElementById('body-trend');
+  const snaps = S.snapshots.filter(s => s.bounce != null);
+  if (!snaps.length) {
+    if (anyRealData()) {
+      setTag('card-trend', false);
+      el.innerHTML = `<svg class="trend-svg" viewBox="0 0 220 60">
+        <line x1="16" y1="54" x2="212" y2="54" stroke="#e5e5e5" stroke-width="1"/>
+        <polyline points="20,34 200,30" fill="none" stroke="#ccc" stroke-width="1.5" stroke-dasharray="4 5"/>
+      </svg>
+      <div class="sub">Grows one point per check-in. Save your first one below.</div>`;
+    } else {
+      setTag('card-trend', true);
+      el.innerHTML = trendSvg(EXAMPLE.trendPoints) + `<div class="sub">11 weeks, one direction.</div>`;
+    }
+    return;
+  }
+  setTag('card-trend', false);
+  const vals = snaps.map(s => s.bounce);
+  const dates = snaps.map(s => s.date.slice(0, 10));
+  const latest = vals[vals.length - 1];
+  const first = vals[0];
+  const dir = vals.length > 1 ? (latest < first ? 'Heading down. Keep going.' : latest > first ? 'Heading up. Something needs attention.' : 'Holding flat.') : 'Grows one point per check-in.';
+  el.innerHTML = trendSvg(vals, { dates }) + `<div class="sub">${snaps.length} check-in${snaps.length > 1 ? 's' : ''}. ${dir}</div>`;
+  attachTrendHover();
+}
+
+function attachTrendHover() {
+  const svg = document.querySelector('#body-trend svg[data-coords]');
+  const tip = document.getElementById('trendTip');
+  if (!svg) return;
+  const coords = JSON.parse(svg.dataset.coords);
+  const vals = JSON.parse(svg.dataset.vals);
+  const dates = svg.dataset.dates ? JSON.parse(svg.dataset.dates) : null;
+  svg.addEventListener('mousemove', e => {
+    const rect = svg.getBoundingClientRect();
+    const xView = (e.clientX - rect.left) / rect.width * 220;
+    let best = 0, bestD = Infinity;
+    coords.forEach((c, i) => { const d = Math.abs(c[0] - xView); if (d < bestD) { bestD = d; best = i; } });
+    const card = document.getElementById('card-trend').getBoundingClientRect();
+    tip.style.left = (rect.left - card.left + coords[best][0] / 220 * rect.width) + 'px';
+    tip.style.top = (rect.top - card.top + coords[best][1] / 60 * rect.height) + 'px';
+    tip.textContent = (dates ? dates[best] + '  ' : '') + vals[best] + '%';
+    tip.style.display = 'block';
+  });
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+
+function targetBar(value, target, max, windowLabel, overIsBad, unit) {
+  if (unit === undefined) unit = '%';
+  const pct = Math.min(100, (value / max) * 100);
+  const tickPct = Math.min(100, (target / max) * 100);
+  const over = overIsBad && value > target;
+  return `<div class="target">
+    <div class="t-track">
+      <div class="t-fill${over ? ' over' : ''}" style="width:${pct}%"></div>
+      <div class="t-tick" style="left:${tickPct}%"></div>
+    </div>
+    target ${target}${unit} · ${windowLabel}</div>`;
+}
+
+function renderProvider() {
+  const el = document.getElementById('body-provider');
+  const p = S.cards.provider;
+  if (!p) {
+    setTag('card-provider', true);
+    el.innerHTML = `<div class="clickable-example" data-pop="provider"><span class="pill">${EXAMPLE.provider.pill}</span>
+      <div class="sub">${EXAMPLE.provider.sub}</div></div>`;
+    return;
+  }
+  setTag('card-provider', false);
+  if (p.state === 'lowvolume') {
+    el.innerHTML = `<span class="pill warn">No data yet</span>
+      <div class="sub">Postmaster often shows nothing under ~100 sends a day to Gmail. Not a failure. This card sits out of the verdict.</div>`;
+    return;
+  }
+  if (p.state === 'nodashboard') {
+    el.innerHTML = `<span class="pill warn">No dashboard exists</span>
+      <div class="sub">Your stack sends through Microsoft, and there is no provider scorecard like Postmaster for it. This card sits out of the verdict.</div>`;
+    return;
+  }
+  const rep = p.reputation || 'unknown';
+  const repClass = /high/i.test(rep) ? '' : /low|bad/i.test(rep) ? ' bad' : ' warn';
+  const overCeiling = p.spamRate > 0.3;
+  el.innerHTML = `<span class="pill${repClass}">Reputation ${esc(rep.toUpperCase())}</span>
+    <div class="sub">Postmaster spam rate ${esc(p.spamRate)}%${overCeiling ? ', over the 0.3% ceiling.' : ', under the 0.3% ceiling.'}</div>
+    ${targetBar(p.spamRate, 0.3, 1, 'recent days in Postmaster', true)}`;
+}
+
+function authBadges(d) {
+  const spf = d.spf ? `<span class="a-ok">SPF</span>` : `<span class="a-bad">SPF</span>`;
+  const dkim = d.dkim ? `<span class="a-ok">DKIM</span>` : `<span class="a-na">DKIM?</span>`;
+  const dmarc = d.dmarc ? `<span class="a-ok">DMARC</span>` : `<span class="a-bad">DMARC</span>`;
+  const mx = d.mx === false ? ` <span class="a-bad">MX</span>` : '';
+  return `${spf} ${dkim} ${dmarc}${mx}`;
+}
+
+function renderAuth() {
+  const el = document.getElementById('body-auth');
+  if (!S.auth) {
+    setTag('card-auth', true);
+    let rows = EXAMPLE.auth.map(d => `<tr><td class="dom">${d.domain}</td><td>${authBadges(d)}</td></tr>`).join('');
+    el.innerHTML = `<table class="auth-table">${rows}</table><div class="sub">${EXAMPLE.authSub}</div>
+      <div class="sub" style="color:var(--ink-faint)">Enter your domain up top and this fills in for real.</div>`;
+    return;
+  }
+  setTag('card-auth', false);
+  const satSet = new Set(S.satellites.filter(s => !s.removed).map(s => s.domain));
+  const rows = S.auth.domains.map(d => {
+    const isSat = satSet.has(d.domain);
+    const noteLines = (d.notes || []).slice(0, 2);
+    const dkimLine = !d.dkim ? `<div class="auth-note na">DKIM not observed on common selectors</div>` : '';
+    return `<tr>
+      <td class="dom">${esc(d.domain)}${isSat ? ` <span class="found-tag">found <button class="rm" data-rmsat="${esc(d.domain)}" title="Not yours? Remove it">&times;</button></span>` : ''}</td>
+      <td>${authBadges(d)}${noteLines.length ? `<div class="auth-note">${noteLines.map(esc).join('. ')}</div>` : ''}${dkimLine}</td>
+    </tr>`;
+  }).join('');
+  const satCount = S.auth.domains.length - 1;
+  const sweepNote = satCount > 0
+    ? `The satellite sweep is a guess from naming patterns. Remove any domain that is not yours.`
+    : `No lookalike sending domains turned up in the sweep.`;
+  el.innerHTML = `<table class="auth-table">${rows}</table>
+    <div class="sub" style="color:var(--ink-faint)">${sweepNote} Re-checked ${new Date(S.auth.checkedAt).toLocaleDateString()}.</div>`;
+  el.querySelectorAll('[data-rmsat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dom = btn.dataset.rmsat;
+      const sat = S.satellites.find(s => s.domain === dom);
+      if (sat) sat.removed = true;
+      S.auth.domains = S.auth.domains.filter(d => d.domain !== dom);
+      if (S.cards.blocklists) delete S.cards.blocklists[dom];
+      save(); render();
+    });
+  });
+}
+
+function renderMailboxes() {
+  const el = document.getElementById('body-mailboxes');
+  const rows = S.cards.mailboxes || EXAMPLE.mailboxes;
+  const isExample = !S.cards.mailboxes;
+  setTag('card-mailboxes', isExample);
+  const max = Math.max(25, ...rows.map(r => r.pct));
+  const html = rows.map(r => `
+    <div class="repbar${(isExample ? r.hot : r.pct > 5) ? ' hot' : ''}">
+      <span class="lbl">${esc(r.label)}</span>
+      <div class="track"><div class="fill" style="width:${Math.min(100, r.pct / max * 100)}%"></div></div>
+      <span class="pct">${r.pct}%</span>
+    </div>`).join('');
+  const wrap = isExample ? `<div class="clickable-example" data-pop="mailboxes">${html}</div>` : html;
+  const note = isExample ? '' : `<div class="sub" style="color:var(--ink-faint)">Every mailbox belongs under 2%. Orange = over 5%.</div>`;
+  el.innerHTML = wrap + note;
+}
+
+function donutSvg(fraction) {
+  const C = 2 * Math.PI * 24;
+  const arc = Math.max(0, Math.min(1, fraction)) * C;
+  return `<svg viewBox="0 0 64 64" style="width:58px;height:58px;display:block;flex-shrink:0">
+    <circle cx="32" cy="32" r="24" fill="none" stroke="#f0f0f0" stroke-width="10"/>
+    <circle cx="32" cy="32" r="24" fill="none" stroke="#1a1a1a" stroke-width="10" stroke-dasharray="${(arc * 0.72).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/>
+    <circle cx="32" cy="32" r="24" fill="none" stroke="#d4ff4a" stroke-width="10" stroke-dasharray="${(arc * 0.28).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-arc * 0.72).toFixed(1)}" transform="rotate(-90 32 32)"/>
+  </svg>`;
+}
+
+function renderList() {
+  const el = document.getElementById('body-list');
+  const c = S.cards.list;
+  if (!c) {
+    setTag('card-list', true);
+    el.innerHTML = `<div class="clickable-example" data-pop="list"><div class="donut-row">${donutSvg(125000 / 143000)}
+      <div class="sub" style="margin-top:0">${EXAMPLE.list.sub}</div></div></div>`;
+    return;
+  }
+  setTag('card-list', false);
+  const frac = c.total && c.verified != null ? c.verified / c.total : null;
+  const donut = frac != null ? donutSvg(frac) : '';
+  const verifiedLine = frac != null
+    ? `${fmtK(c.verified)} of ${fmtK(c.total)} verified.`
+    : 'Add contact counts to see coverage.';
+  el.innerHTML = `<div class="donut-row">${donut}<div class="sub" style="margin-top:0">
+      <span style="font-size:17px;font-weight:700;color:var(--ink)">${c.bounce}%</span> bounce<br>${verifiedLine}</div></div>
+    ${targetBar(c.bounce, 2, Math.max(8, c.bounce * 1.3), 'rolling 30 days', true)}`;
+}
+
+function fmtK(n) {
+  if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'K';
+  return String(n);
+}
+
+function renderBlocklists() {
+  const el = document.getElementById('body-blocklists');
+  const domains = S.auth ? S.auth.domains.map(d => d.domain) : null;
+  if (!domains) {
+    setTag('card-blocklists', true);
+    el.innerHTML = `<div class="sub" style="margin-top:0">Clean on Spamhaus, SURBL, Barracuda.</div>
+      <div class="sub" style="color:var(--ink-faint)">Your browser cannot check these directly. The lists block public DNS resolvers, so an automatic check would falsely say clean. Two minutes by hand instead.</div>`;
+    return;
+  }
+  setTag('card-blocklists', false);
+  if (!S.cards.blocklists) S.cards.blocklists = {};
+  const rows = domains.map(dom => {
+    const status = S.cards.blocklists[dom] || '';
+    return `<div class="bl-row">
+      <span class="dom">${esc(dom)}</span>
+      <a href="https://mxtoolbox.com/SuperTool.aspx?action=blacklist%3a${encodeURIComponent(dom)}&run=toolpage" target="_blank" rel="noopener">check &#8599;</a>
+      <select data-bl="${esc(dom)}" class="${status}">
+        <option value=""${status === '' ? ' selected' : ''}>not checked</option>
+        <option value="clean"${status === 'clean' ? ' selected' : ''}>clean</option>
+        <option value="listed"${status === 'listed' ? ' selected' : ''}>listed</option>
+      </select>
+    </div>`;
+  }).join('');
+  el.innerHTML = rows + `<div class="sub" style="color:var(--ink-faint)">Browsers cannot query blocklists directly (the lists block public resolvers), so this one is a two-minute manual check. Spamhaus itself: <a href="https://check.spamhaus.org" target="_blank" rel="noopener" style="color:inherit">check.spamhaus.org</a>.</div>`;
+  el.querySelectorAll('select[data-bl]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      S.cards.blocklists[sel.dataset.bl] = sel.value;
+      save(); render();
+    });
+  });
+}
+
+function renderSending() {
+  const el = document.getElementById('body-sending');
+  const c = S.cards.sending;
+  const isExample = !c;
+  setTag('card-sending', isExample);
+  const d = c || EXAMPLE.sending;
+  const body = `
+    <div class="kv"><span class="k">sends per mailbox per day</span><span class="v">${d.perDay}</span></div>
+    <div class="kv"><span class="k">days per week</span><span class="v">${d.daysPerWeek != null ? d.daysPerWeek : 'not set'}</span></div>`;
+  const target = isExample ? '' : targetBar(d.perDay, 50, Math.max(80, d.perDay * 1.2), 'a heuristic ceiling, not a law', true, '/day');
+  el.innerHTML = isExample
+    ? `<div class="clickable-example" data-pop="sending">${body}</div>`
+    : body + target;
+}
+
+function contentFlags(c) {
+  return [
+    { label: c.links != null ? `${c.links} link${c.links === 1 ? '' : 's'}` : 'links not counted', flag: c.links > 1, set: c.links != null },
+    { label: c.images === 'none' ? 'no images' : c.images === 'some' ? 'has images' : 'images unchecked', flag: c.images === 'some', set: !!c.images },
+    { label: c.tracking === 'off' ? 'tracking off on cold sends' : c.tracking === 'on' ? 'tracking on cold sends' : 'tracking unchecked', flag: c.tracking === 'on', set: !!c.tracking },
+    { label: c.spamwords === 'clean' ? 'reads clean' : c.spamwords === 'salesy' ? 'reads salesy' : 'gut check pending', flag: c.spamwords === 'salesy', set: !!c.spamwords }
+  ];
+}
+
+function renderContent() {
+  const el = document.getElementById('body-content');
+  const c = S.cards.content;
+  const isExample = !c;
+  setTag('card-content', isExample);
+  const flags = contentFlags(c || EXAMPLE.content);
+  const rows = flags.map(f => `<div class="check-row">
+    <span class="mark ${f.set ? (f.flag ? 'flag' : 'good') : 'unset'}">${f.set ? (f.flag ? '!' : '✓') : '·'}</span>
+    <span>${esc(f.label)}</span></div>`).join('');
+  el.innerHTML = isExample ? `<div class="clickable-example" data-pop="content">${rows}</div>` : rows;
+}
+
+function setTag(cardId, isExample) {
+  const card = document.getElementById(cardId);
+  let tag = card.querySelector('.ex-tag');
+  if (isExample && !tag) {
+    tag = document.createElement('span');
+    tag.className = 'ex-tag';
+    tag.textContent = 'example';
+    card.appendChild(tag);
+  } else if (!isExample && tag) {
+    tag.remove();
+  }
+}
+
+function renderHeader() {
+  const pill = document.getElementById('modePill');
+  const input = document.getElementById('domainInput');
+  if (S.domain && !input.value) input.value = S.domain;
+  if (anyRealData()) {
+    const st = realCardStatus();
+    const count = ['auth', 'blocklists', 'list', 'mailboxes', 'sending', 'provider', 'content'].filter(k => st[k]).length + (st.providerUnavailable ? 1 : 0);
+    pill.textContent = count >= 7 ? 'all yours' : `${count} of 7 cards real`;
+  } else {
+    pill.textContent = 'showing example data';
+  }
+  document.getElementById('barRight').textContent = S.domain ? S.domain : 'updated by you';
+}
+
+function renderReceipt() {
+  const el = document.getElementById('receipt');
+  if (!S.auth || S.receiptDismissed) { el.classList.remove('show'); return; }
+  const sats = S.auth.domains.slice(1);
+  const broken = S.auth.domains.filter(d => !d.spf || !d.dmarc);
+  const bits = [];
+  bits.push(`Checked <b>${esc(S.domain)}</b>.`);
+  if (sats.length) bits.push(`Found ${sats.length} more sending domain${sats.length > 1 ? 's' : ''}: ${sats.map(d => esc(d.domain)).join(', ')}.`);
+  if (broken.length) bits.push(`Auth problems on ${broken.map(d => '<b>' + esc(d.domain) + '</b>').join(', ')}. Details on the Domain auth card.`);
+  else bits.push('Auth records look clean. That means passing checks, not guaranteed inbox placement.');
+  if (S.stack && S.stack.label) bits.push(`You send through ${esc(S.stack.label)}${S.stack.tools.length ? ' plus ' + esc(S.stack.tools.join(', ')) : ''}, so the instructions here follow that path.`);
+  el.innerHTML = bits.join(' ') + `<button class="dismiss" title="Dismiss">&times;</button>`;
+  el.classList.add('show');
+  el.querySelector('.dismiss').addEventListener('click', () => {
+    S.receiptDismissed = true;
+    save();
+    el.classList.remove('show');
+  });
+}
+
+function render() {
+  renderHeader();
+  renderVerdict();
+  renderTrend();
+  renderProvider();
+  renderAuth();
+  renderMailboxes();
+  renderList();
+  renderBlocklists();
+  renderSending();
+  renderContent();
+  bindExampleClicks();
+}
+
+function bindExampleClicks() {
+  document.querySelectorAll('.clickable-example').forEach(elm => {
+    elm.addEventListener('click', () => openPopover(elm.dataset.pop, elm.closest('.card')));
+  });
+}
+
+/* ---------- popovers ---------- */
+
+const popBackdrop = document.getElementById('popBackdrop');
+const popover = document.getElementById('popover');
+
+function openPopover(kind, cardEl) {
+  const builders = { list: popList, mailboxes: popMailboxes, sending: popSending, provider: popProvider, content: popContent, auth: popAuth, trend: popTrend };
+  if (!builders[kind]) return;
+  popover.innerHTML = builders[kind]();
+  popover.style.display = 'block';
+  popBackdrop.classList.add('show');
+  const rect = cardEl.getBoundingClientRect();
+  const top = window.scrollY + rect.top + 34;
+  let left = window.scrollX + rect.left + 8;
+  left = Math.min(left, window.scrollX + document.documentElement.clientWidth - popover.offsetWidth - 16);
+  popover.style.top = top + 'px';
+  popover.style.left = Math.max(8, left) + 'px';
+  popover.querySelector('.pop-cancel').addEventListener('click', closePopover);
+  const saveBtn = popover.querySelector('.pop-save');
+  if (saveBtn) saveBtn.addEventListener('click', () => { savePopover(kind); });
+  const first = popover.querySelector('input, select');
+  if (first) first.focus();
+}
+
+function closePopover() {
+  popover.style.display = 'none';
+  popBackdrop.classList.remove('show');
+}
+
+popBackdrop.addEventListener('click', closePopover);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
+
+function popField(id, label, type, value, attrs) {
+  return `<label for="${id}">${label}</label><input type="${type}" id="${id}" value="${value != null ? esc(value) : ''}" ${attrs || ''}>`;
+}
+
+function popList() {
+  const c = S.cards.list || {};
+  return `<h4>List health</h4>
+    <p class="where">${esc(whereToFind('list'))}</p>
+    ${popField('f-bounce', 'bounce rate % (last 30 days)', 'number', c.bounce, 'step="0.1" min="0" max="100"')}
+    ${popField('f-total', 'contacts total (optional)', 'number', c.total, 'min="0"')}
+    ${popField('f-verified', 'of those, verified (optional)', 'number', c.verified, 'min="0"')}
+    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function popMailboxes() {
+  const rows = (S.cards.mailboxes && S.cards.mailboxes.length ? S.cards.mailboxes : [{ label: '', pct: '' }, { label: '', pct: '' }]);
+  const rowsHtml = rows.map(r => mbRowHtml(r.label, r.pct)).join('');
+  return `<h4>Bounces by mailbox</h4>
+    <p class="where">${esc(whereToFind('mailboxes'))}</p>
+    <div id="mbRows">${rowsHtml}</div>
+    <button class="add-row-btn" type="button" onclick="document.getElementById('mbRows').insertAdjacentHTML('beforeend', mbRowHtml('',''))">+ add mailbox</button>
+    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function mbRowHtml(label, pct) {
+  return `<div class="mb-edit-row">
+    <input type="text" class="mb-label" placeholder="name or alias" value="${esc(label)}">
+    <input type="number" class="mb-pct" placeholder="%" step="0.1" min="0" max="100" value="${esc(pct)}">
+    <button type="button" class="rm-row" onclick="this.parentElement.remove()">&times;</button>
+  </div>`;
+}
+window.mbRowHtml = mbRowHtml;
+
+function popSending() {
+  const c = S.cards.sending || {};
+  return `<h4>Sending behavior</h4>
+    <p class="where">${esc(whereToFind('sending'))}</p>
+    ${popField('f-perday', 'sends per mailbox per day', 'number', c.perDay, 'min="0"')}
+    ${popField('f-days', 'sending days per week', 'number', c.daysPerWeek, 'min="0" max="7"')}
+    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function popProvider() {
+  const c = S.cards.provider || {};
+  const state = c.state || 'data';
+  const isMs = S.stack && S.stack.primary === 'microsoft';
+  return `<h4>Provider verdict</h4>
+    <p class="where">${esc(whereToFind('provider'))}</p>
+    <label class="radio-row"><input type="radio" name="pstate" value="data" ${state === 'data' && !isMs ? 'checked' : ''}> I have Postmaster data</label>
+    <label class="radio-row"><input type="radio" name="pstate" value="lowvolume" ${state === 'lowvolume' ? 'checked' : ''}> Postmaster shows no data (low volume to Gmail)</label>
+    <label class="radio-row"><input type="radio" name="pstate" value="nodashboard" ${state === 'nodashboard' || (isMs && state === 'data' && c.spamRate == null) ? 'checked' : ''}> My stack has no provider dashboard (Microsoft etc.)</label>
+    <div id="pdataFields">
+    ${popField('f-spam', 'spam rate % (latest)', 'number', c.spamRate, 'step="0.01" min="0" max="100"')}
+    <label for="f-rep">domain reputation</label>
+    <select id="f-rep">
+      ${['HIGH', 'MEDIUM', 'LOW', 'BAD'].map(r => `<option value="${r}"${(c.reputation || 'HIGH') === r ? ' selected' : ''}>${r}</option>`).join('')}
+    </select>
+    </div>
+    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function popContent() {
+  const c = S.cards.content || {};
+  return `<h4>Email content</h4>
+    <p class="where">${esc(whereToFind('content'))}</p>
+    ${popField('f-links', 'links in the email', 'number', c.links, 'min="0"')}
+    <label for="f-images">images</label>
+    <select id="f-images">
+      <option value=""${!c.images ? ' selected' : ''}>pick one</option>
+      <option value="none"${c.images === 'none' ? ' selected' : ''}>none, plain text</option>
+      <option value="some"${c.images === 'some' ? ' selected' : ''}>has images</option>
+    </select>
+    <label for="f-tracking">link or open tracking on cold sends</label>
+    <select id="f-tracking">
+      <option value=""${!c.tracking ? ' selected' : ''}>pick one</option>
+      <option value="off"${c.tracking === 'off' ? ' selected' : ''}>off</option>
+      <option value="on"${c.tracking === 'on' ? ' selected' : ''}>on</option>
+    </select>
+    <label for="f-spamwords">gut check: does it read like a person wrote it?</label>
+    <select id="f-spamwords">
+      <option value=""${!c.spamwords ? ' selected' : ''}>pick one</option>
+      <option value="clean"${c.spamwords === 'clean' ? ' selected' : ''}>reads clean</option>
+      <option value="salesy"${c.spamwords === 'salesy' ? ' selected' : ''}>reads salesy</option>
+    </select>
+    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function popAuth() {
+  return `<h4>Custom DKIM selector</h4>
+    <p class="where">The check probes common DKIM selectors (google, selector1, s1 and friends). If your tool uses a custom one, add it here and re-check.</p>
+    ${popField('f-selector', 'selector', 'text', S.customSelector, 'placeholder="e.g. em123 or krs"')}
+    <div class="pop-btns"><button class="pop-save">Save + re-check</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function popTrend() {
+  const b = S.cards.list && S.cards.list.bounce != null ? S.cards.list.bounce : '';
+  return `<h4>Save a check-in</h4>
+    <p class="where">A check-in stamps today's bounce rate onto the trend. Do it weekly and the line tells the story.</p>
+    ${popField('f-snap-bounce', 'bounce rate % right now', 'number', b, 'step="0.1" min="0" max="100"')}
+    <div class="pop-btns"><button class="pop-save">Save check-in</button><button class="pop-cancel">Cancel</button></div>`;
+}
+
+function numVal(id) {
+  const el = document.getElementById(id);
+  if (!el || el.value === '') return null;
+  const n = Number(el.value);
+  return isNaN(n) ? null : n;
+}
+
+function savePopover(kind) {
+  if (kind === 'list') {
+    const bounce = numVal('f-bounce');
+    if (bounce == null) { toast('Bounce rate is the one this card needs.'); return; }
+    S.cards.list = { bounce, total: numVal('f-total'), verified: numVal('f-verified') };
+  }
+  if (kind === 'mailboxes') {
+    const rows = [...document.querySelectorAll('#mbRows .mb-edit-row')].map(r => ({
+      label: r.querySelector('.mb-label').value.trim(),
+      pctRaw: r.querySelector('.mb-pct').value
+    }));
+    const clean = rows
+      .filter(r => r.label && r.pctRaw !== '' && !isNaN(Number(r.pctRaw)))
+      .map(r => ({ label: r.label, pct: Number(r.pctRaw) }));
+    if (!clean.length) { toast('Add at least one mailbox row.'); return; }
+    S.cards.mailboxes = clean;
+  }
+  if (kind === 'sending') {
+    const perDay = numVal('f-perday');
+    if (perDay == null) { toast('Sends per day is the one this card needs.'); return; }
+    S.cards.sending = { perDay, daysPerWeek: numVal('f-days') };
+  }
+  if (kind === 'provider') {
+    const state = (document.querySelector('input[name="pstate"]:checked') || {}).value || 'data';
+    if (state === 'data') {
+      const spamRate = numVal('f-spam');
+      if (spamRate == null) { toast('Spam rate is the one this card needs.'); return; }
+      S.cards.provider = { state, spamRate, reputation: document.getElementById('f-rep').value };
+    } else {
+      S.cards.provider = { state };
+    }
+  }
+  if (kind === 'content') {
+    S.cards.content = {
+      links: numVal('f-links'),
+      images: document.getElementById('f-images').value || null,
+      tracking: document.getElementById('f-tracking').value || null,
+      spamwords: document.getElementById('f-spamwords').value || null
+    };
+  }
+  if (kind === 'auth') {
+    const sel = document.getElementById('f-selector').value.trim();
+    S.customSelector = sel || null;
+    save(); closePopover();
+    if (S.domain) runCheck(S.domain);
+    return;
+  }
+  if (kind === 'trend') {
+    const bounce = numVal('f-snap-bounce');
+    if (bounce == null) { toast('Enter a bounce rate to save the check-in.'); return; }
+    S.snapshots.push({ date: new Date().toISOString(), bounce, spamRate: S.cards.provider && S.cards.provider.spamRate != null ? S.cards.provider.spamRate : null });
+    if (S.cards.list) S.cards.list.bounce = bounce; else S.cards.list = { bounce, total: null, verified: null };
+  }
+  save();
+  closePopover();
+  render();
+  toast('Saved. Lives in this browser only.');
+}
+
+/* ---------- toolbar ---------- */
+
+document.querySelectorAll('[data-pop]').forEach(btn => {
+  if (btn.classList.contains('edit-link')) {
+    btn.addEventListener('click', () => openPopover(btn.dataset.pop, btn.closest('.card')));
+  }
+});
+
+document.getElementById('btnCheckin').addEventListener('click', () => {
+  openPopover('trend', document.getElementById('card-trend'));
+});
+
+document.getElementById('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `email-health-${(S.domain || 'example')}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Exported. This file is your backup.');
+});
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || typeof data !== 'object' || !('cards' in data)) throw new Error('shape');
+      S = Object.assign(defaultState(), data);
+      save();
+      render();
+      renderReceipt();
+      toast('Imported.');
+    } catch (err) {
+      toast('That file does not look like an export from this dashboard.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (!confirm('Clear everything and go back to example data? Export first if you want a backup.')) return;
+  S = defaultState();
+  try { localStorage.removeItem(LS_KEY); } catch (e) { /* fine */ }
+  document.getElementById('domainInput').value = '';
+  render();
+  renderReceipt();
+  toast('Back to the example.');
+});
+
+document.getElementById('domainForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('domainInput').value;
+  if (val.trim()) runCheck(val);
+});
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ---------- boot ---------- */
+
+render();
+renderReceipt();
+
+(function boot() {
+  const params = new URLSearchParams(location.search);
+  const qDomain = params.get('domain');
+  if (qDomain && qDomain.trim()) {
+    document.getElementById('domainInput').value = qDomain.trim();
+    runCheck(qDomain);
+  } else if (S.domain) {
+    // auth re-checks on open, quietly
+    runCheck(S.domain);
+  }
+})();
+</script>
+</body>
+</html>
