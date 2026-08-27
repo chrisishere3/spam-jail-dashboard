@@ -155,7 +155,7 @@
     font-family: var(--mono);
     letter-spacing: 0.02em;
   }
-  .ex-tag {
+  .state-tag {
     position: absolute;
     top: 12px;
     right: 12px;
@@ -169,6 +169,13 @@
     border-radius: 4px;
     padding: 1px 6px;
   }
+  .state-tag.live {
+    color: var(--ink);
+    background: var(--accent);
+    border-color: #b8e030;
+    font-weight: 600;
+  }
+  .card.is-example .card-body { opacity: 0.8; }
   .card-body { flex: 1; }
   .big { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.15; }
   .sub { font-size: 12px; color: var(--ink-soft); margin-top: 7px; line-height: 1.5; }
@@ -453,7 +460,7 @@
         <div class="card-head"><span class="card-h">Verdict</span><span class="chip">computes itself</span></div>
         <div class="card-body" id="body-verdict"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#the-rap-sheet" target="_blank" rel="noopener" data-tip="Computes from the cards holding real data. Green auth means passing records, not inbox placement.">how this works &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#the-rap-sheet" target="_blank" rel="noopener" data-tip="The verdict is calculated from cards that contain real data. Passing DNS records do not guarantee inbox placement.">how this works &#8599;</a>
           <span></span>
         </div>
       </div>
@@ -463,7 +470,7 @@
         <div class="card-body" id="body-trend"></div>
         <div class="trend-tip" id="trendTip"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify every address before anyone sends to it. Purge the dead ones. Bounce falls in weeks.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify email addresses before sending and remove addresses that fail verification. Bounce rate falls as invalid addresses leave the list.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="trend">save a check-in</button>
         </div>
       </div>
@@ -472,7 +479,7 @@
         <div class="card-head"><span class="card-h">Provider verdict</span><span class="chip">needs Google Postmaster</span></div>
         <div class="card-body" id="body-provider"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict" target="_blank" rel="noopener" data-tip="No direct fix. This number moves when everything above it moves. Set up Postmaster and watch.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict" target="_blank" rel="noopener" data-tip="There is no direct fix for this number. It improves as the other cards improve. Set up Google Postmaster Tools to track it.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="provider">+ enter yours</button>
         </div>
       </div>
@@ -481,7 +488,7 @@
         <div class="card-head"><span class="card-h">Domain auth</span><span class="chip">automatic</span></div>
         <div class="card-body" id="body-auth"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth" target="_blank" rel="noopener" data-tip="Missing records get added wherever your DNS lives. SPF lists your senders. DMARC needs reports going to a real inbox.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth" target="_blank" rel="noopener" data-tip="Add missing SPF, DKIM, or DMARC records at your DNS provider. DMARC reports should be sent to a monitored inbox.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="auth">dkim selector</button>
         </div>
       </div>
@@ -490,7 +497,7 @@
         <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-mailboxes"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Find the hot mailboxes, purge their bounced addresses, and rest them while they recover.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Identify mailboxes with high bounce rates, remove the invalid addresses they emailed, and reduce their sending until rates recover.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="mailboxes">+ enter yours</button>
         </div>
       </div>
@@ -499,7 +506,7 @@
         <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-list"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify every address before anyone sends to it. Purge the dead ones. Bounce falls in weeks.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify email addresses before sending and remove addresses that fail verification. Bounce rate falls as invalid addresses leave the list.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="list">+ enter yours</button>
         </div>
       </div>
@@ -508,7 +515,7 @@
         <div class="card-head"><span class="card-h">Blocklists</span><span class="chip">2 min, no access needed</span></div>
         <div class="card-body" id="body-blocklists"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists" target="_blank" rel="noopener" data-tip="If a domain is listed, stop and work that list's delisting process first. Everything else waits.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists" target="_blank" rel="noopener" data-tip="If a domain is listed, follow that blocklist's removal process before making other changes.">how to fix &#8599;</a>
           <span></span>
         </div>
       </div>
@@ -517,7 +524,7 @@
         <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-sending"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Keep sending human-shaped. Spread volume across mailboxes and days, no blasts.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Lower sends per mailbox per day and spread sending across the week. Around 50 per day per mailbox is a common ceiling.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="sending">+ enter yours</button>
         </div>
       </div>
@@ -526,7 +533,7 @@
         <div class="card-head"><span class="card-h">Email content</span><span class="chip">2 min, needs a recent email</span></div>
         <div class="card-body" id="body-content"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content" target="_blank" rel="noopener" data-tip="Plain text, short, one link, no tracking on cold sends. Reads like one person wrote it.">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content" target="_blank" rel="noopener" data-tip="Use plain text with at most one link. Disable open and click tracking on cold outreach.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="content">+ enter yours</button>
         </div>
       </div>
@@ -1203,15 +1210,15 @@ function renderContent() {
 
 function setTag(cardId, isExample) {
   const card = document.getElementById(cardId);
-  let tag = card.querySelector('.ex-tag');
-  if (isExample && !tag) {
+  card.classList.toggle('is-example', isExample);
+  let tag = card.querySelector('.state-tag');
+  if (!tag) {
     tag = document.createElement('span');
-    tag.className = 'ex-tag';
-    tag.textContent = 'example';
+    tag.className = 'state-tag';
     card.appendChild(tag);
-  } else if (!isExample && tag) {
-    tag.remove();
   }
+  tag.classList.toggle('live', !isExample);
+  tag.textContent = isExample ? 'example' : 'live';
 }
 
 function renderHeader() {
