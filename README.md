@@ -41,7 +41,7 @@ The one exception is the automatic DNS check. It queries these two public resolv
 
 They see the domain names being looked up, the same as any DNS lookup. That's it.
 
-The hosted copy at spamjail.chris-as-is.com also runs Cloudflare Web Analytics, a cookieless visit counter, so I can tell if people use this. It's injected by the host, not in this file. Self-host and there's none.
+The hosted copy at spamjail.chris-as-is.com also runs Cloudflare Web Analytics, a cookieless visit counter, so I can tell if people use this. It gets added at deploy time (see deploy.sh), so the `index.html` in this repo has none. Self-host and nothing is counted.
 
 ## Self-hosting
 
