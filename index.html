@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Email Health</title>
+<title>DIY Email Health Dashboard</title>
 <meta name="description" content="A free, open-source email deliverability dashboard. Your data stays in your browser.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23d4ff4a'/%3E%3Crect x='4' y='7' width='8' height='2' fill='%231a1a1a'/%3E%3C/svg%3E">
 <style>
@@ -194,6 +194,26 @@
     cursor: pointer;
   }
   .fix-link:hover { color: var(--ink); text-decoration: underline; }
+  .fix-link { position: relative; }
+  .fix-link[data-tip]:hover::after, .fix-link[data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: -4px;
+    width: 230px;
+    background: var(--ink);
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.5;
+    padding: 9px 11px;
+    border-radius: 8px;
+    z-index: 12;
+    pointer-events: none;
+  }
   .edit-link {
     font-size: 11px;
     font-family: var(--mono);
@@ -417,14 +437,12 @@
 <div class="wrap">
 
   <div class="top">
-    <div class="wordmark">Email Health</div>
+    <div class="wordmark">DIY Email Health Dashboard</div>
     <form class="domain-form" id="domainForm">
       <input type="text" id="domainInput" placeholder="yourdomain.com" autocomplete="off" spellcheck="false" inputmode="url" aria-label="Your sending domain">
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
   </div>
-  <p class="tagline">The deliverability dashboard from <a href="https://chris-as-is.com/projects/spam-jail">How to Get Out of Spam Jail</a>, DIY edition. Everything stays in your browser.</p>
-
   <div class="receipt" id="receipt" role="status"></div>
 
   <div class="dash">
@@ -435,7 +453,7 @@
         <div class="card-head"><span class="card-h">Verdict</span><span class="chip">computes itself</span></div>
         <div class="card-body" id="body-verdict"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#the-rap-sheet">how this works &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#the-rap-sheet" target="_blank" rel="noopener" data-tip="Computes from the cards holding real data. Green auth means passing records, not inbox placement.">how this works &#8599;</a>
           <span></span>
         </div>
       </div>
@@ -445,7 +463,7 @@
         <div class="card-body" id="body-trend"></div>
         <div class="trend-tip" id="trendTip"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify every address before anyone sends to it. Purge the dead ones. Bounce falls in weeks.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="trend">save a check-in</button>
         </div>
       </div>
@@ -454,7 +472,7 @@
         <div class="card-head"><span class="card-h">Provider verdict</span><span class="chip">needs Google Postmaster</span></div>
         <div class="card-body" id="body-provider"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict" target="_blank" rel="noopener" data-tip="No direct fix. This number moves when everything above it moves. Set up Postmaster and watch.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="provider">+ enter yours</button>
         </div>
       </div>
@@ -463,7 +481,7 @@
         <div class="card-head"><span class="card-h">Domain auth</span><span class="chip">automatic</span></div>
         <div class="card-body" id="body-auth"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth" target="_blank" rel="noopener" data-tip="Missing records get added wherever your DNS lives. SPF lists your senders. DMARC needs reports going to a real inbox.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="auth">dkim selector</button>
         </div>
       </div>
@@ -472,7 +490,7 @@
         <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-mailboxes"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Find the hot mailboxes, purge their bounced addresses, and rest them while they recover.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="mailboxes">+ enter yours</button>
         </div>
       </div>
@@ -481,7 +499,7 @@
         <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-list"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify every address before anyone sends to it. Purge the dead ones. Bounce falls in weeks.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="list">+ enter yours</button>
         </div>
       </div>
@@ -490,7 +508,7 @@
         <div class="card-head"><span class="card-h">Blocklists</span><span class="chip">2 min, no access needed</span></div>
         <div class="card-body" id="body-blocklists"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists" target="_blank" rel="noopener" data-tip="If a domain is listed, stop and work that list's delisting process first. Everything else waits.">how to fix &#8599;</a>
           <span></span>
         </div>
       </div>
@@ -499,7 +517,7 @@
         <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
         <div class="card-body" id="body-sending"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Keep sending human-shaped. Spread volume across mailboxes and days, no blasts.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="sending">+ enter yours</button>
         </div>
       </div>
@@ -508,7 +526,7 @@
         <div class="card-head"><span class="card-h">Email content</span><span class="chip">2 min, needs a recent email</span></div>
         <div class="card-body" id="body-content"></div>
         <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content">how to fix &#8599;</a>
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content" target="_blank" rel="noopener" data-tip="Plain text, short, one link, no tracking on cold sends. Reads like one person wrote it.">how to fix &#8599;</a>
           <button class="edit-link" data-pop="content">+ enter yours</button>
         </div>
       </div>

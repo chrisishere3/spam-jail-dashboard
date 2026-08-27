@@ -1,4 +1,4 @@
-# Email Health, the Spam Jail dashboard
+# DIY Email Health Dashboard
 
 A free deliverability dashboard you fill in yourself. One HTML file. No accounts, no server, no build step.
 
