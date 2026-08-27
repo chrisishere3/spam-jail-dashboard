@@ -54,45 +54,33 @@
     color: var(--ink);
     white-space: nowrap;
   }
-  .domain-form { display: flex; gap: 8px; flex: 1; min-width: 260px; max-width: 440px; }
+  .domain-form { display: flex; gap: 8px; flex: 1; min-width: 260px; max-width: 520px; }
   .domain-form input {
     flex: 1;
     min-width: 120px;
-    padding: 8px 12px;
-    border: 1px solid var(--rule);
-    border-radius: 7px;
+    padding: 11px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
     font-family: var(--mono);
-    font-size: 13.5px;
+    font-size: 15px;
     color: var(--ink);
     background: var(--card);
     outline: none;
   }
   .domain-form input:focus { border-color: var(--ink); }
   .domain-form button {
-    padding: 8px 15px;
+    padding: 11px 18px;
     border: 1px solid var(--ink);
-    border-radius: 7px;
-    background: var(--ink);
-    color: #fff;
-    font-size: 13.5px;
-    font-weight: 600;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 650;
     cursor: pointer;
     white-space: nowrap;
   }
-  .domain-form button:hover { background: #000; }
+  .domain-form button:hover { background: #c8f53a; }
   .domain-form button:disabled { opacity: 0.5; cursor: default; }
-  .mode-pill {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    background: #eee;
-    border: 1px solid var(--rule);
-    border-radius: 999px;
-    padding: 3px 10px;
-    white-space: nowrap;
-  }
   .tagline { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
   .tagline a { color: var(--ink-soft); }
 
@@ -197,17 +185,27 @@
   .pill.warn { background: var(--warn-bg); color: #7a5a0e; border-color: var(--warn-border); }
   .pill.bad { background: #fbeaea; color: #8f2020; border-color: #efc9c9; }
   .card-foot { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .fix-link, .edit-link {
+  .fix-link {
     font-size: 11px;
     font-family: var(--mono);
     color: var(--ink-faint);
     text-decoration: none;
-    border: none;
-    background: none;
     padding: 0;
     cursor: pointer;
   }
-  .fix-link:hover, .edit-link:hover { color: var(--ink); text-decoration: underline; }
+  .fix-link:hover { color: var(--ink); text-decoration: underline; }
+  .edit-link {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--ink-soft);
+    background: var(--card);
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    padding: 3px 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .edit-link:hover { border-color: var(--ink); color: var(--ink); }
   .clickable-example { cursor: pointer; }
   .clickable-example:hover { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 
@@ -424,7 +422,6 @@
       <input type="text" id="domainInput" placeholder="yourdomain.com" autocomplete="off" spellcheck="false" inputmode="url" aria-label="Your sending domain">
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
-    <span class="mode-pill" id="modePill">showing example data</span>
   </div>
   <p class="tagline">The deliverability dashboard from <a href="https://chris-as-is.com/projects/spam-jail">How to Get Out of Spam Jail</a>, DIY edition. Everything stays in your browser.</p>
 
@@ -458,7 +455,7 @@
         <div class="card-body" id="body-provider"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="provider">enter yours</button>
+          <button class="edit-link" data-pop="provider">+ enter yours</button>
         </div>
       </div>
 
@@ -476,7 +473,7 @@
         <div class="card-body" id="body-mailboxes"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="mailboxes">enter yours</button>
+          <button class="edit-link" data-pop="mailboxes">+ enter yours</button>
         </div>
       </div>
 
@@ -485,7 +482,7 @@
         <div class="card-body" id="body-list"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="list">enter yours</button>
+          <button class="edit-link" data-pop="list">+ enter yours</button>
         </div>
       </div>
 
@@ -503,7 +500,7 @@
         <div class="card-body" id="body-sending"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="sending">enter yours</button>
+          <button class="edit-link" data-pop="sending">+ enter yours</button>
         </div>
       </div>
 
@@ -512,7 +509,7 @@
         <div class="card-body" id="body-content"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="content">enter yours</button>
+          <button class="edit-link" data-pop="content">+ enter yours</button>
         </div>
       </div>
 
@@ -1200,17 +1197,17 @@ function setTag(cardId, isExample) {
 }
 
 function renderHeader() {
-  const pill = document.getElementById('modePill');
   const input = document.getElementById('domainInput');
   if (S.domain && !input.value) input.value = S.domain;
+  const bar = document.getElementById('barRight');
   if (anyRealData()) {
     const st = realCardStatus();
     const count = ['auth', 'blocklists', 'list', 'mailboxes', 'sending', 'provider', 'content'].filter(k => st[k]).length + (st.providerUnavailable ? 1 : 0);
-    pill.textContent = count >= 7 ? 'all yours' : `${count} of 7 cards real`;
+    const state = count >= 7 ? 'all yours' : `${count} of 7 real`;
+    bar.textContent = S.domain ? `${S.domain} · ${state}` : state;
   } else {
-    pill.textContent = 'showing example data';
+    bar.textContent = 'showing example data';
   }
-  document.getElementById('barRight').textContent = S.domain ? S.domain : 'updated by you';
 }
 
 function renderReceipt() {
@@ -1534,6 +1531,9 @@ renderReceipt();
   } else if (S.domain) {
     // auth re-checks on open, quietly
     runCheck(S.domain);
+  } else if (!anyRealData() && window.matchMedia('(min-width: 761px)').matches) {
+    // first land on desktop: cursor waiting in the one field that matters
+    document.getElementById('domainInput').focus();
   }
 })();
 </script>
