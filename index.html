@@ -84,34 +84,6 @@
   .tagline { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
   .tagline a { color: var(--ink-soft); }
 
-  /* ---------- receipt strip ---------- */
-  .receipt {
-    display: none;
-    background: var(--accent);
-    border: 1px solid #b8e030;
-    border-radius: 9px;
-    padding: 12px 40px 12px 16px;
-    margin: 0 0 16px;
-    font-size: 13.5px;
-    color: var(--ink);
-    position: relative;
-    line-height: 1.55;
-  }
-  .receipt.show { display: block; }
-  .receipt b { font-weight: 650; }
-  .receipt .dismiss {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    border: none;
-    background: none;
-    font-size: 17px;
-    line-height: 1;
-    color: var(--ink);
-    cursor: pointer;
-    padding: 4px;
-  }
-
   /* ---------- the bento ---------- */
   .dash {
     border: 1px solid var(--rule);
@@ -176,6 +148,13 @@
     font-weight: 600;
   }
   .card.is-example .card-body { opacity: 0.8; }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes cardFlash {
+      0% { background: #f0fbc9; }
+      100% { background: var(--card); }
+    }
+    .card.flash { animation: cardFlash 1.6s ease-out; }
+  }
   .card-body { flex: 1; }
   .big { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.15; }
   .sub { font-size: 12px; color: var(--ink-soft); margin-top: 7px; line-height: 1.5; }
@@ -450,8 +429,6 @@
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
   </div>
-  <div class="receipt" id="receipt" role="status"></div>
-
   <div class="dash">
     <div class="dash-bar"><span>email health</span><span id="barRight">updated by you</span></div>
     <div class="grid" id="grid">
@@ -578,7 +555,6 @@ function defaultState() {
     satellites: [],          // [{domain, removed}]
     auth: null,              // {checkedAt, domains: [{domain, found, spf, dkim, dmarc, mx, notes}]}
     stack: null,             // {primary: 'google'|'microsoft'|null, tools: [names], label}
-    receiptDismissed: false,
     cards: {
       list: null,            // {bounce, total, verified}
       mailboxes: null,       // [{label, pct}]
@@ -757,7 +733,7 @@ async function runCheck(domain) {
 
     const newDomain = domain !== S.domain;
     S.domain = domain;
-    if (newDomain) { S.satellites = []; S.receiptDismissed = false; }
+    if (newDomain) S.satellites = [];
 
     const found = await sweepSatellites(domain);
     const kept = new Set(S.satellites.filter(s => !s.removed).map(s => s.domain));
@@ -772,7 +748,6 @@ async function runCheck(domain) {
     if (!S.cards.blocklists) S.cards.blocklists = {};
 
     save();
-    renderReceipt();
     render();
   } catch (e) {
     toast('The check failed. Your network may block DNS-over-HTTPS. Try again.');
@@ -957,17 +932,9 @@ function renderTrend() {
   const el = document.getElementById('body-trend');
   const snaps = S.snapshots.filter(s => s.bounce != null);
   if (!snaps.length) {
-    if (anyRealData()) {
-      setTag('card-trend', false);
-      el.innerHTML = `<svg class="trend-svg" viewBox="0 0 220 60">
-        <line x1="16" y1="54" x2="212" y2="54" stroke="#e5e5e5" stroke-width="1"/>
-        <polyline points="20,34 200,30" fill="none" stroke="#ccc" stroke-width="1.5" stroke-dasharray="4 5"/>
-      </svg>
-      <div class="sub">Grows one point per check-in. Save your first one below.</div>`;
-    } else {
-      setTag('card-trend', true);
-      el.innerHTML = trendSvg(EXAMPLE.trendPoints) + `<div class="sub">11 weeks, one direction.</div>`;
-    }
+    // Example until the user saves a check-in. A domain check does not unlock this card.
+    setTag('card-trend', true);
+    el.innerHTML = trendSvg(EXAMPLE.trendPoints) + `<div class="sub">11 weeks, one direction.</div>`;
     return;
   }
   setTag('card-trend', false);
@@ -1074,7 +1041,12 @@ function renderAuth() {
   const sweepNote = satCount > 0
     ? `The satellite sweep is a guess from naming patterns. Remove any domain that is not yours.`
     : `No lookalike sending domains turned up in the sweep.`;
-  el.innerHTML = `<table class="auth-table">${rows}</table>
+  let stackLine = '';
+  if (S.stack && (S.stack.label || (S.stack.tools || []).length)) {
+    const parts = [S.stack.label, ...(S.stack.tools || [])].filter(Boolean);
+    stackLine = `<div class="sub">Detected stack: ${esc(parts.join(', '))}. Instructions in the other cards follow this.</div>`;
+  }
+  el.innerHTML = `<table class="auth-table">${rows}</table>${stackLine}
     <div class="sub" style="color:var(--ink-faint)">${sweepNote} Re-checked ${new Date(S.auth.checkedAt).toLocaleDateString()}.</div>`;
   el.querySelectorAll('[data-rmsat]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1217,6 +1189,13 @@ function setTag(cardId, isExample) {
     tag.className = 'state-tag';
     card.appendChild(tag);
   }
+  // Flash only on a real example -> live flip, never on first paint.
+  if (!isExample && tag.dataset.state === 'example') {
+    card.classList.remove('flash');
+    void card.offsetWidth;
+    card.classList.add('flash');
+  }
+  tag.dataset.state = isExample ? 'example' : 'live';
   tag.classList.toggle('live', !isExample);
   tag.textContent = isExample ? 'example' : 'live';
 }
@@ -1233,26 +1212,6 @@ function renderHeader() {
   } else {
     bar.textContent = 'showing example data';
   }
-}
-
-function renderReceipt() {
-  const el = document.getElementById('receipt');
-  if (!S.auth || S.receiptDismissed) { el.classList.remove('show'); return; }
-  const sats = S.auth.domains.slice(1);
-  const broken = S.auth.domains.filter(d => !d.spf || !d.dmarc);
-  const bits = [];
-  bits.push(`Checked <b>${esc(S.domain)}</b>.`);
-  if (sats.length) bits.push(`Found ${sats.length} more sending domain${sats.length > 1 ? 's' : ''}: ${sats.map(d => esc(d.domain)).join(', ')}.`);
-  if (broken.length) bits.push(`Auth problems on ${broken.map(d => '<b>' + esc(d.domain) + '</b>').join(', ')}. Details on the Domain auth card.`);
-  else bits.push('Auth records look clean. That means passing checks, not guaranteed inbox placement.');
-  if (S.stack && S.stack.label) bits.push(`You send through ${esc(S.stack.label)}${S.stack.tools.length ? ' plus ' + esc(S.stack.tools.join(', ')) : ''}, so the instructions here follow that path.`);
-  el.innerHTML = bits.join(' ') + `<button class="dismiss" title="Dismiss">&times;</button>`;
-  el.classList.add('show');
-  el.querySelector('.dismiss').addEventListener('click', () => {
-    S.receiptDismissed = true;
-    save();
-    el.classList.remove('show');
-  });
 }
 
 function render() {
@@ -1508,8 +1467,7 @@ document.getElementById('importFile').addEventListener('change', e => {
       S = Object.assign(defaultState(), data);
       save();
       render();
-      renderReceipt();
-      toast('Imported.');
+        toast('Imported.');
     } catch (err) {
       toast('That file does not look like an export from this dashboard.');
     }
@@ -1524,7 +1482,6 @@ document.getElementById('btnReset').addEventListener('click', () => {
   try { localStorage.removeItem(LS_KEY); } catch (e) { /* fine */ }
   document.getElementById('domainInput').value = '';
   render();
-  renderReceipt();
   toast('Back to the example.');
 });
 
@@ -1545,7 +1502,6 @@ function toast(msg) {
 /* ---------- boot ---------- */
 
 render();
-renderReceipt();
 
 (function boot() {
   const params = new URLSearchParams(location.search);
