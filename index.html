@@ -387,6 +387,17 @@
   .check-row .mark.flag { color: var(--warn); }
   .check-row .mark.unset { color: var(--ink-faint); }
 
+  /* api connect */
+  .via { color: var(--ink-faint); font-size: 10.5px; font-family: var(--mono); margin-top: 7px; }
+  .popover details { margin-top: 10px; border-top: 1px solid var(--rule); padding-top: 8px; }
+  .popover summary { cursor: pointer; font-size: 11.5px; color: var(--ink-soft); font-family: var(--mono); }
+  .pop-connect-btn { background: var(--accent); border: 1px solid var(--ink); border-radius: 6px; padding: 6px 14px; font-weight: 700; font-size: 12.5px; cursor: pointer; margin-top: 8px; }
+  .pop-connect-btn:disabled { opacity: .5; cursor: default; }
+  .pop-keyrow { display: flex; gap: 8px; margin-top: 6px; }
+  .pop-keyrow button { white-space: nowrap; }
+  .pop-keymeta { display: flex; gap: 10px; align-items: center; font-size: 11.5px; margin: 6px 0 2px; }
+  .pop-keymeta button { background: none; border: 1px solid var(--rule); border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer; color: var(--ink-soft); }
+
   /* kv rows (sending behavior) */
   .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; margin-bottom: 4px; }
   .kv .k { color: var(--ink-soft); }
@@ -520,7 +531,7 @@
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
   </div>
-  <p class="trustline">Runs entirely in your browser. The check sends DNS lookups to Cloudflare and Google public resolvers, like any DNS lookup. Nothing else leaves this tab.</p>
+  <p class="trustline">Runs entirely in your browser. The check sends DNS lookups to Cloudflare and Google public resolvers, like any DNS lookup. If you connect a sending tool, your key is stored in this browser only and every call goes straight from your browser to that tool. Nothing touches any other server.</p>
 
   <div class="scan" id="scan" role="status" aria-live="polite"></div>
 
@@ -562,7 +573,7 @@
 
 
       <div class="card" id="card-list">
-        <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-head"><span class="card-h">List health</span><span class="chip">from your sending tool</span></div>
         <div class="card-body" id="body-list"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify email addresses before sending and remove addresses that fail verification. Bounce rate falls as invalid addresses leave the list.">how to fix &#8599;</a>
@@ -572,7 +583,7 @@
 
 
       <div class="card" id="card-mailboxes">
-        <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-head"><span class="card-h" id="head-mailboxes">Bounces by mailbox</span><span class="chip">from your sending tool</span></div>
         <div class="card-body" id="body-mailboxes"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Identify mailboxes with high bounce rates, remove the invalid addresses they emailed, and reduce their sending until rates recover.">how to fix &#8599;</a>
@@ -582,7 +593,7 @@
 
 
       <div class="card compact" id="card-sending">
-        <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">from your sending tool</span></div>
         <div class="card-body" id="body-sending"></div>
         <div class="card-foot">
           <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Lower sends per mailbox per day and spread sending across the week. Around 50 per day per mailbox is a common ceiling.">how to fix &#8599;</a>
@@ -670,7 +681,10 @@ function defaultState() {
       blocklists: null,      // {domain: 'clean'|'listed'}
       content: null          // {links, images, tracking, spamwords}
     },
-    snapshots: []            // [{date, bounce, spamRate}]
+    snapshots: [],           // [{date, bounce, spamRate}]
+    keys: { smartlead: null },
+    apiMeta: null,           // {source:'smartlead', fetchedAt, campaigns, sent, bounced, mailboxKind}
+    apiTrend: []             // [{date, bounce}] weekly, from the sending tool
   };
 }
 
@@ -925,6 +939,136 @@ async function runCheck(domain) {
   }
 }
 
+/* ---------- sending tool: Smartlead, browser-direct ---------- */
+/* The key never leaves the browser: it is stored in localStorage and sent only
+   to server.smartlead.ai, which allows cross-origin calls. No proxy, no server. */
+
+const SL_BASE = 'https://server.smartlead.ai/api/v1';
+
+function slPause(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function slFetch(key, path) {
+  const sep = path.includes('?') ? '&' : '?';
+  const resp = await fetch(SL_BASE + path + sep + 'api_key=' + encodeURIComponent(key));
+  if (resp.status === 401 || resp.status === 403) throw new Error('badkey');
+  if (!resp.ok) throw new Error('http' + resp.status);
+  return resp.json();
+}
+
+function slDate(d) { return d.toISOString().slice(0, 10); }
+
+async function pullSmartlead(key, quiet) {
+  const narrate = !quiet;
+  try {
+    if (narrate) { scanShow(); scanLine('$ connecting to smartlead', 'cmd'); }
+
+    const campaigns = await slFetch(key, '/campaigns');
+    const started = campaigns.filter(c => c.status !== 'DRAFTED').slice(0, 8);
+    if (narrate) { scanLine('  ' + campaigns.length + ' campaign' + (campaigns.length === 1 ? '' : 's') + ', ' + started.length + ' with sends', ''); }
+
+    let sent = 0, bounced = 0;
+    const withSends = [];
+    for (const c of started) {
+      await slPause(350);
+      const a = await slFetch(key, '/campaigns/' + c.id + '/analytics');
+      const s = Number(a.sent_count) || 0, b = Number(a.bounce_count) || 0;
+      sent += s; bounced += b;
+      if (s > 0) withSends.push({ id: c.id, sent: s });
+    }
+    const bouncePct = sent > 0 ? Math.round(bounced / sent * 1000) / 10 : null;
+    if (narrate && sent > 0) scanLine('  lifetime: ' + sent + ' sent, ' + bounced + ' bounced (' + bouncePct + '%)', bouncePct > 2 ? 'warn' : 'ok');
+
+    let daysPerWeek = null;
+    started.forEach(c => {
+      const d = c.scheduler_cron_value && c.scheduler_cron_value.days;
+      if (d && d.length) daysPerWeek = Math.max(daysPerWeek || 0, d.length);
+    });
+
+    if (narrate) scanLine('$ checking mailboxes + warmup', 'cmd');
+    await slPause(350);
+    const acctResp = await slFetch(key, '/email-accounts/?offset=0&limit=20');
+    const accts = Array.isArray(acctResp) ? acctResp : (acctResp.data || []);
+    let maxCap = null;
+    const mailboxes = [];
+    for (const a of accts.slice(0, 10)) {
+      if (a.message_per_day) maxCap = Math.max(maxCap || 0, a.message_per_day);
+      await slPause(350);
+      try {
+        const w = await slFetch(key, '/email-accounts/' + a.id + '/warmup-stats');
+        const ws = Number(w.sent_count) || 0, spam = Number(w.spam_count) || 0;
+        if (ws > 0) {
+          const pct = Math.round(spam / ws * 1000) / 10;
+          mailboxes.push({ label: a.from_email, pct });
+          if (narrate) scanLine('  ' + a.from_email + '  warmup ' + spam + '/' + ws + ' in spam', pct >= 1 ? 'warn' : 'ok');
+        }
+      } catch (e) { if (e.message === 'badkey') throw e; /* warmup off for this account */ }
+    }
+    const broken = accts.filter(a => a.is_smtp_success === false || a.is_imap_success === false);
+    if (narrate && broken.length) scanLine('  ' + broken.length + ' mailbox connection' + (broken.length === 1 ? '' : 's') + ' BROKEN (smtp/imap)', 'warn');
+
+    if (narrate) scanLine('$ pulling 6 weeks of bounce history', 'cmd');
+    const trend = [];
+    const trendCamps = withSends.sort((x, y) => y.sent - x.sent).slice(0, 3);
+    for (let w = 5; w >= 0; w--) {
+      const end = new Date(Date.now() - w * 7 * 86400000);
+      const start = new Date(end.getTime() - 6 * 86400000);
+      let ws = 0, wb = 0;
+      for (const c of trendCamps) {
+        await slPause(300);
+        const a = await slFetch(key, '/campaigns/' + c.id + '/analytics-by-date?start_date=' + slDate(start) + '&end_date=' + slDate(end));
+        ws += Number(a.sent_count) || 0; wb += Number(a.bounce_count) || 0;
+      }
+      if (ws > 0) {
+        const pct = Math.round(wb / ws * 1000) / 10;
+        trend.push({ date: slDate(end), bounce: pct });
+        if (narrate) scanLine('  week of ' + slDate(end) + '  ' + ws + ' sent · bounce ' + pct + '%', pct > 2 ? 'warn' : '');
+      }
+    }
+
+    if (bouncePct != null) S.cards.list = { bounce: bouncePct, total: null, verified: null };
+    if (mailboxes.length) S.cards.mailboxes = mailboxes;
+    if (maxCap != null) S.cards.sending = { perDay: maxCap, daysPerWeek };
+    S.apiTrend = trend;
+    S.keys.smartlead = key;
+    S.apiMeta = {
+      source: 'smartlead', fetchedAt: new Date().toISOString(),
+      campaigns: withSends.length, sent, bounced,
+      mailboxKind: mailboxes.length ? 'warmup' : null,
+      brokenMailboxes: broken.map(a => a.from_email)
+    };
+
+    if (narrate) { scanLine('done · dashboard filled from smartlead', 'ok'); await slPause(1200); scanHide(); }
+    save();
+    render();
+    if (!quiet) toast('Connected. Key saved in this browser only.');
+    return true;
+  } catch (e) {
+    if (narrate) scanHide();
+    if (e.message === 'badkey') toast('Smartlead rejected that key. Copy it from Smartlead → Settings → API key.');
+    else toast('Could not reach Smartlead from this browser. Check your network and try again.');
+    return false;
+  }
+}
+
+function disconnectSmartlead() {
+  S.keys.smartlead = null;
+  S.apiMeta = null;
+  S.apiTrend = [];
+  S.cards.list = null;
+  S.cards.mailboxes = null;
+  S.cards.sending = null;
+  save();
+  render();
+  toast('Key removed and Smartlead data cleared.');
+}
+
+function viaLine() {
+  if (!S.apiMeta) return '';
+  const mins = Math.round((Date.now() - new Date(S.apiMeta.fetchedAt).getTime()) / 60000);
+  const when = mins < 2 ? 'just now' : mins < 60 ? mins + ' min ago' : Math.round(mins / 60) + 'h ago';
+  return '<div class="via">via Smartlead · refreshed ' + when + '</div>';
+}
+
 /* ---------- example data (the numbers from the blog post) ---------- */
 
 const EXAMPLE = {
@@ -1033,9 +1177,15 @@ function computeVerdict() {
     if (b > 5) { issues.push(`bounce ${b}%, way over the 2% line`); severe = true; }
     else if (b > 2) issues.push(`bounce ${b}%, over the 2% line`);
   }
+  const warmupMode = S.apiMeta && S.apiMeta.mailboxKind === 'warmup';
   if (st.mailboxes) {
-    const hot = S.cards.mailboxes.filter(m => m.pct > 5);
-    if (hot.length) issues.push(`${hot.length} mailbox${hot.length > 1 ? 'es' : ''} bouncing hard`);
+    const hot = S.cards.mailboxes.filter(m => warmupMode ? m.pct >= 1 : m.pct > 5);
+    if (hot.length) issues.push(warmupMode
+      ? `${hot.length} mailbox${hot.length > 1 ? 'es' : ''} landing in spam during warmup`
+      : `${hot.length} mailbox${hot.length > 1 ? 'es' : ''} bouncing hard`);
+  }
+  if (S.apiMeta && S.apiMeta.brokenMailboxes && S.apiMeta.brokenMailboxes.length) {
+    issues.push(`${S.apiMeta.brokenMailboxes.length} mailbox connection${S.apiMeta.brokenMailboxes.length > 1 ? 's' : ''} broken (SMTP/IMAP)`);
   }
   if (st.provider) {
     const p = S.cards.provider;
@@ -1103,6 +1253,18 @@ function trendSvg(points, opts) {
 
 function renderTrend() {
   const el = document.getElementById('body-trend');
+  const chip = document.querySelector('#card-trend .chip');
+  if (chip) chip.textContent = (S.apiTrend && S.apiTrend.length) ? 'weekly, from your sending tool' : 'one point per check-in';
+  if (S.apiTrend && S.apiTrend.length) {
+    setTag('card-trend', false);
+    const vals = S.apiTrend.map(p => p.bounce);
+    const dates = S.apiTrend.map(p => p.date);
+    const latest = vals[vals.length - 1], first = vals[0];
+    const dir = vals.length > 1 ? (latest < first ? 'Heading down. Keep going.' : latest > first ? 'Heading up. Something needs attention.' : 'Holding flat.') : 'One week of sends so far.';
+    el.innerHTML = trendSvg(vals, { dates }) + `<div class="sub">Weekly bounce, last ${vals.length} week${vals.length > 1 ? 's' : ''}. ${dir}</div>` + viaLine();
+    attachTrendHover();
+    return;
+  }
   const snaps = S.snapshots.filter(s => s.bounce != null);
   if (!snaps.length) {
     // Example until the user saves a check-in. A domain check does not unlock this card.
@@ -1248,16 +1410,20 @@ function renderMailboxes() {
   const el = document.getElementById('body-mailboxes');
   const rows = S.cards.mailboxes || EXAMPLE.mailboxes;
   const isExample = !S.cards.mailboxes;
+  const warmupMode = !isExample && S.apiMeta && S.apiMeta.mailboxKind === 'warmup';
+  document.getElementById('head-mailboxes').textContent = warmupMode ? 'Warmup spam by mailbox' : 'Bounces by mailbox';
   setTag('card-mailboxes', isExample);
-  const max = Math.max(25, ...rows.map(r => r.pct));
+  const max = Math.max(warmupMode ? 5 : 25, ...rows.map(r => r.pct));
   const html = rows.map(r => `
-    <div class="repbar${(isExample ? r.hot : r.pct > 5) ? ' hot' : ''}">
+    <div class="repbar${(isExample ? r.hot : (warmupMode ? r.pct >= 1 : r.pct > 5)) ? ' hot' : ''}">
       <span class="lbl">${esc(r.label)}</span>
       <div class="track"><div class="fill" style="width:${Math.min(100, r.pct / max * 100)}%"></div></div>
       <span class="pct">${r.pct}%</span>
     </div>`).join('');
   const wrap = isExample ? `<div class="clickable-example" data-pop="mailboxes">${html}</div>` : html;
-  const note = isExample ? '' : `<div class="sub" style="color:var(--ink-faint)">Every mailbox belongs under 2%. Orange = over 5%.</div>`;
+  const note = isExample ? '' : warmupMode
+    ? `<div class="sub" style="color:var(--ink-faint)">% of recent warmup sends that landed in spam. The target is 0.${S.apiMeta.brokenMailboxes.length ? ' Broken connections: ' + esc(S.apiMeta.brokenMailboxes.join(', ')) + '.' : ''}</div>` + viaLine()
+    : `<div class="sub" style="color:var(--ink-faint)">Every mailbox belongs under 2%. Orange = over 5%.</div>`;
   el.innerHTML = wrap + note;
 }
 
@@ -1285,10 +1451,10 @@ function renderList() {
   const donut = frac != null ? donutSvg(frac) : '';
   const verifiedLine = frac != null
     ? `${fmtK(c.verified)} of ${fmtK(c.total)} verified.`
-    : 'Add contact counts to see coverage.';
+    : (S.apiMeta ? `across ${S.apiMeta.campaigns} campaign${S.apiMeta.campaigns === 1 ? '' : 's'}: ${fmtK(S.apiMeta.sent)} sent, ${fmtK(S.apiMeta.bounced)} bounced.` : 'Add contact counts to see coverage.');
   el.innerHTML = `<div class="donut-row">${donut}<div class="sub" style="margin-top:0">
       <span style="font-size:17px;font-weight:700;color:var(--ink)">${c.bounce}%</span> bounce<br>${verifiedLine}</div></div>
-    ${targetBar(c.bounce, 2, Math.max(8, c.bounce * 1.3), 'rolling 30 days', true)}`;
+    ${targetBar(c.bounce, 2, Math.max(8, c.bounce * 1.3), S.apiMeta ? 'campaign lifetime' : 'rolling 30 days', true)}${S.apiMeta ? viaLine() : ''}`;
 }
 
 function fmtK(n) {
@@ -1335,12 +1501,12 @@ function renderSending() {
   setTag('card-sending', isExample);
   const d = c || EXAMPLE.sending;
   const body = `
-    <div class="kv"><span class="k">sends per mailbox per day</span><span class="v">${d.perDay}</span></div>
+    <div class="kv"><span class="k">${!isExample && S.apiMeta ? 'daily cap per mailbox' : 'sends per mailbox per day'}</span><span class="v">${d.perDay}</span></div>
     <div class="kv"><span class="k">days per week</span><span class="v">${d.daysPerWeek != null ? d.daysPerWeek : 'not set'}</span></div>`;
   const target = isExample ? '' : targetBar(d.perDay, 50, Math.max(80, d.perDay * 1.2), 'a heuristic ceiling, not a law', true, '/day');
   el.innerHTML = isExample
     ? `<div class="clickable-example" data-pop="sending">${body}</div>`
-    : body + target;
+    : body + target + (S.apiMeta ? viaLine() : '');
 }
 
 function contentFlags(c) {
@@ -1404,7 +1570,7 @@ function renderChecklist() {
   const items = [
     { label: 'Domain check', hint: 'automatic, runs when you enter a domain', done: !!S.auth },
     { label: 'Blocklists', hint: '2 min, lookup links on the card', done: st.blocklists },
-    { label: 'Sending tool', hint: 'bounce rate, per-mailbox bounces, daily volume', done: st.list && st.mailboxes && st.sending },
+    { label: 'Sending tool', hint: S.keys.smartlead ? 'connected to Smartlead' : 'paste your Smartlead API key, or by hand', done: st.list && st.mailboxes && st.sending },
     { label: 'Google Postmaster', hint: 'spam rate and reputation', done: !!(st.provider || st.providerUnavailable) },
     { label: 'A recent email', hint: 'links, images, tracking', done: st.content }
   ];
@@ -1414,8 +1580,16 @@ function renderChecklist() {
   </div>`).join('');
 }
 
+function renderEditLinks() {
+  ['list', 'mailboxes', 'sending'].forEach(kind => {
+    const btn = document.querySelector(`#card-${kind} .edit-link`);
+    if (btn) btn.textContent = S.keys.smartlead ? 'api · settings' : '+ api key or by hand';
+  });
+}
+
 function render() {
   renderHeader();
+  renderEditLinks();
   renderChecklist();
   renderVerdict();
   renderTrend();
@@ -1455,6 +1629,22 @@ function openPopover(kind, cardEl) {
   popover.querySelector('.pop-cancel').addEventListener('click', closePopover);
   const saveBtn = popover.querySelector('.pop-save');
   if (saveBtn) saveBtn.addEventListener('click', () => { savePopover(kind); });
+  const connBtn = popover.querySelector('.pop-connect-btn');
+  if (connBtn) connBtn.addEventListener('click', async () => {
+    const key = (document.getElementById('f-slkey').value || '').trim();
+    if (!key) { toast('Paste your Smartlead API key first.'); return; }
+    connBtn.disabled = true; connBtn.textContent = 'Connecting…';
+    closePopover();
+    await pullSmartlead(key, false);
+  });
+  const refBtn = popover.querySelector('.pop-refresh-btn');
+  if (refBtn) refBtn.addEventListener('click', async () => {
+    closePopover();
+    const ok = await pullSmartlead(S.keys.smartlead, false);
+    if (ok) toast('Refreshed from Smartlead.');
+  });
+  const rmBtn = popover.querySelector('.pop-removekey-btn');
+  if (rmBtn) rmBtn.addEventListener('click', () => { closePopover(); disconnectSmartlead(); });
   const first = popover.querySelector('input, select');
   if (first) first.focus();
 }
@@ -1471,24 +1661,46 @@ function popField(id, label, type, value, attrs) {
   return `<label for="${id}">${label}</label><input type="${type}" id="${id}" value="${value != null ? esc(value) : ''}" ${attrs || ''}>`;
 }
 
+function connectBlock() {
+  if (S.keys.smartlead) {
+    return `<h4>Sending tool connected</h4>
+      <div class="pop-keymeta"><span>Smartlead</span>
+        <button type="button" class="pop-refresh-btn">refresh</button>
+        <button type="button" class="pop-removekey-btn">remove key</button>
+      </div>
+      <p class="where">The key lives in this browser only. Calls go straight from your browser to Smartlead.</p>`;
+  }
+  return `<h4>Connect your sending tool</h4>
+    <p class="where">Paste your Smartlead API key (Smartlead → Settings → API key). One paste fills this card, the other sending-tool cards, and the bounce trend. The key is saved in this browser only and every call goes straight from your browser to Smartlead — nothing touches any other server. Instantly and HubSpot block browser connections, so those stay hand-entry for now.</p>
+    <div class="pop-keyrow">
+      <input type="password" id="f-slkey" placeholder="smartlead api key" autocomplete="off">
+      <button type="button" class="pop-connect-btn">Connect</button>
+    </div>`;
+}
+
+function manualWrap(inner) {
+  return `<details><summary>or enter this card by hand</summary>${inner}</details>
+    <div class="pop-btns"><button class="pop-cancel">Close</button></div>`;
+}
+
 function popList() {
   const c = S.cards.list || {};
-  return `<h4>List health</h4>
+  return connectBlock() + manualWrap(`
     <p class="where">${esc(whereToFind('list'))}</p>
     ${popField('f-bounce', 'bounce rate % (last 30 days)', 'number', c.bounce, 'step="0.1" min="0" max="100"')}
     ${popField('f-total', 'contacts total (optional)', 'number', c.total, 'min="0"')}
     ${popField('f-verified', 'of those, verified (optional)', 'number', c.verified, 'min="0"')}
-    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+    <div class="pop-btns"><button class="pop-save">Save</button></div>`);
 }
 
 function popMailboxes() {
   const rows = (S.cards.mailboxes && S.cards.mailboxes.length ? S.cards.mailboxes : [{ label: '', pct: '' }, { label: '', pct: '' }]);
   const rowsHtml = rows.map(r => mbRowHtml(r.label, r.pct)).join('');
-  return `<h4>Bounces by mailbox</h4>
+  return connectBlock() + manualWrap(`
     <p class="where">${esc(whereToFind('mailboxes'))}</p>
     <div id="mbRows">${rowsHtml}</div>
     <button class="add-row-btn" type="button" onclick="document.getElementById('mbRows').insertAdjacentHTML('beforeend', mbRowHtml('',''))">+ add mailbox</button>
-    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+    <div class="pop-btns"><button class="pop-save">Save</button></div>`);
 }
 
 function mbRowHtml(label, pct) {
@@ -1502,11 +1714,11 @@ window.mbRowHtml = mbRowHtml;
 
 function popSending() {
   const c = S.cards.sending || {};
-  return `<h4>Sending behavior</h4>
+  return connectBlock() + manualWrap(`
     <p class="where">${esc(whereToFind('sending'))}</p>
     ${popField('f-perday', 'sends per mailbox per day', 'number', c.perDay, 'min="0"')}
     ${popField('f-days', 'sending days per week', 'number', c.daysPerWeek, 'min="0" max="7"')}
-    <div class="pop-btns"><button class="pop-save">Save</button><button class="pop-cancel">Cancel</button></div>`;
+    <div class="pop-btns"><button class="pop-save">Save</button></div>`);
 }
 
 function popProvider() {
@@ -1577,6 +1789,8 @@ function numVal(id) {
 }
 
 function savePopover(kind) {
+  // A hand entry on an API-fed card takes over that card; drop the provenance label.
+  if (['list', 'mailboxes', 'sending'].includes(kind)) S.apiMeta = null;
   if (kind === 'list') {
     const bounce = numVal('f-bounce');
     if (bounce == null) { toast('Bounce rate is the one this card needs.'); return; }
@@ -1648,7 +1862,8 @@ document.getElementById('btnCheckin').addEventListener('click', () => {
 });
 
 document.getElementById('btnExport').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  // API keys never leave this browser, exports included.
+  const blob = new Blob([JSON.stringify(Object.assign({}, S, { keys: undefined }), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `email-health-${(S.domain || 'example')}-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1707,6 +1922,10 @@ render();
 (function boot() {
   const params = new URLSearchParams(location.search);
   const qDomain = params.get('domain');
+  if (S.keys.smartlead) {
+    // refresh sending-tool data in the background; saved numbers show meanwhile
+    pullSmartlead(S.keys.smartlead, true);
+  }
   if (qDomain && qDomain.trim()) {
     document.getElementById('domainInput').value = qDomain.trim();
     runCheck(qDomain);

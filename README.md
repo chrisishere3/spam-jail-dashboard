@@ -1,6 +1,6 @@
 # DIY Email Health Dashboard
 
-A free deliverability dashboard you fill in yourself. One HTML file. No accounts, no server, no build step.
+A free deliverability dashboard that mostly fills itself. One HTML file. No accounts, no server, no build step.
 
 It's the dashboard from [How to Get Out of Spam Jail](https://chris-as-is.com/projects/spam-jail), DIY edition. That post covers a real recovery: 7.4% bounce down to 2.4% in six weeks. This page opens showing those numbers as example data, so you can see what healthy-in-progress looks like. Then you swap in your own.
 
@@ -12,9 +12,13 @@ Or run it on your own domain in one step: `spamjail.chris-as-is.com/?domain=your
 
 ## How it works
 
-Type your domain up top and hit check. The page does one automatic thing: it reads your public DNS records (SPF, DKIM, DMARC, MX) straight from the browser, including lookalike sending domains like getyourbrand.com. Everything else is a number you go find and paste in. Click any example value and the card tells you where to find the real one.
+Type your domain up top and hit check. The page reads your public DNS records (SPF, DKIM, DMARC, MX) straight from the browser, including lookalike sending domains like getyourbrand.com.
 
-Save a check-in each week and the bounce trend chart builds itself.
+If you send with Smartlead, paste your API key (Smartlead → Settings → API key) into any sending-tool card and four more cards fill themselves: bounce rate across your campaigns, warmup spam per mailbox, sending caps, and a weekly bounce trend. The key is stored in this browser's localStorage only, and every call goes straight from your browser to `server.smartlead.ai`. No proxy, no middleman, and exports never include the key. Read the code, it's one file.
+
+Why only Smartlead: it's the major sending tool that allows browser-direct API calls. Instantly and HubSpot block them (CORS), so those stay hand-entry.
+
+Everything else is a number you go find and paste in. Click any example value and the card tells you where to find the real one. No Smartlead? Save a check-in each week and the bounce trend chart builds itself.
 
 ## The 7 cards, in the order worth doing them
 
@@ -22,9 +26,10 @@ Save a check-in each week and the bounce trend chart builds itself.
 |------|--------|---------------|
 | Domain auth | automatic | nothing |
 | Blocklists | 2 min | nothing, just click the links |
-| List health | 5 min | your sending tool login |
-| Bounces by mailbox | 5 min | your sending tool login |
-| Sending behavior | 2 min | ask your reps, or check the tool |
+| List health | automatic with a Smartlead key, else 5 min | your sending tool |
+| Bounces / warmup by mailbox | automatic with a Smartlead key, else 5 min | your sending tool |
+| Sending behavior | automatic with a Smartlead key, else 2 min | your sending tool |
+| Bounce trend | automatic with a Smartlead key, else weekly check-ins | your sending tool |
 | Provider verdict | 15 min setup | Google Postmaster (needs Google admin or DNS access) |
 | Email content | 2 min | one recent email from your team |
 
@@ -32,14 +37,12 @@ The verdict card computes itself once 4 cards hold real data.
 
 ## What leaves your browser (full disclosure)
 
-Your numbers stay in your browser (localStorage). Nothing you type is sent anywhere.
+Your numbers and any API key stay in your browser (localStorage). Nothing you type is sent to any server of mine.
 
-The one exception is the automatic DNS check. It queries these two public resolvers over HTTPS:
+Two things do leave the tab:
 
-- `https://cloudflare-dns.com/dns-query` (Cloudflare)
-- `https://dns.google/resolve` (Google, fallback)
-
-They see the domain names being looked up, the same as any DNS lookup. That's it.
+- The automatic DNS check queries two public resolvers over HTTPS: `https://cloudflare-dns.com/dns-query` (Cloudflare) and `https://dns.google/resolve` (Google, fallback). They see the domain names being looked up, the same as any DNS lookup.
+- If you connect Smartlead, your browser calls `https://server.smartlead.ai` directly with your key. That traffic is between you and Smartlead only.
 
 The hosted copy at spamjail.chris-as-is.com also runs Cloudflare Web Analytics, a cookieless visit counter, so I can tell if people use this. It gets added at deploy time (see deploy.sh), so the `index.html` in this repo has none. Self-host and nothing is counted.
 
