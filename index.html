@@ -84,6 +84,69 @@
   .tagline { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
   .tagline a { color: var(--ink-soft); }
 
+  /* ---------- scan log ---------- */
+  .scan {
+    display: none;
+    background: #1c1f26;
+    border-radius: 9px;
+    padding: 13px 16px;
+    margin: 0 0 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .scan.show { display: block; }
+  .scan .line { color: #9aa3b2; white-space: pre-wrap; animation: scanIn 0.18s ease-out; }
+  .scan .line.cmd { color: #e8e8e8; margin-top: 4px; }
+  .scan .line.cmd:first-child { margin-top: 0; }
+  .scan .line.ok { color: #b5f06b; }
+  .scan .line.warn { color: #e8a45c; }
+  .scan .line.dim { color: #5c6470; }
+  @keyframes scanIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- build checklist ---------- */
+  .build-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 14px;
+  }
+  .bl-item {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 8px 11px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .bl-item .bl-mark {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    background: #f0f0f0;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
+  .bl-item.done .bl-mark { background: var(--accent); color: var(--ink); }
+  .bl-item .bl-label { font-weight: 600; display: block; }
+  .bl-item .bl-hint { display: block; color: var(--ink-faint); font-size: 10.5px; margin-top: 1px; }
+  .bl-item.done .bl-hint { color: var(--ink-soft); }
+
   /* ---------- the bento ---------- */
   .dash {
     border: 1px solid var(--rule);
@@ -429,6 +492,11 @@
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
   </div>
+
+  <div class="scan" id="scan" role="status" aria-live="polite"></div>
+
+  <div class="build-list" id="buildList"></div>
+
   <div class="dash">
     <div class="dash-bar"><span>email health</span><span id="barRight">updated by you</span></div>
     <div class="grid" id="grid">
@@ -707,17 +775,35 @@ function detectStack(authResults) {
   return { primary, tools, label };
 }
 
-async function sweepSatellites(domain) {
-  const brand = domain.replace(/\.[a-z.]+$/i, '');
-  const candidates = [
-    `get${brand}.com`, `try${brand}.com`, `${brand}hq.com`,
-    `${brand}.io`, `${brand}.co`, `${brand}.net`
-  ].filter(c => c !== domain);
-  const results = await Promise.all(candidates.map(async c => {
-    const resp = await dnsQuery(c, 'MX');
-    return mxRecords(resp).length ? c : null;
-  }));
-  return results.filter(Boolean);
+/* ---------- scan log (the check, narrated live) ---------- */
+
+const pause = ms => new Promise(r => setTimeout(r, ms));
+
+function scanShow() {
+  const el = document.getElementById('scan');
+  el.innerHTML = '';
+  el.classList.add('show');
+}
+
+function scanHide() { document.getElementById('scan').classList.remove('show'); }
+
+function scanLine(text, cls) {
+  const el = document.getElementById('scan');
+  const div = document.createElement('div');
+  div.className = 'line' + (cls ? ' ' + cls : '');
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function authScanLines(d) {
+  const lines = [];
+  lines.push(['  MX      ' + (d.mx ? d.mxHosts.length + ' record' + (d.mxHosts.length > 1 ? 's' : '') : 'none'), d.mx ? 'ok' : 'warn']);
+  lines.push(['  SPF     ' + (d.spf ? 'record found, passes' : 'PROBLEM'), d.spf ? 'ok' : 'warn']);
+  lines.push(['  DKIM    ' + (d.dkim ? 'observed on selector ' + d.dkimSelector : 'not observed on common selectors'), d.dkim ? 'ok' : 'dim']);
+  lines.push(['  DMARC   ' + (d.dmarc ? 'record found' : 'PROBLEM'), d.dmarc ? 'ok' : 'warn']);
+  (d.notes || []).slice(0, 2).forEach(n => lines.push(['  note    ' + n, 'warn']));
+  return lines;
 }
 
 async function runCheck(domain) {
@@ -735,21 +821,62 @@ async function runCheck(domain) {
     S.domain = domain;
     if (newDomain) S.satellites = [];
 
-    const found = await sweepSatellites(domain);
+    scanShow();
+    scanLine('$ dig ' + domain, 'cmd');
+    const primaryPromise = checkAuth(domain, S.customSelector);
+    await pause(500);
+    const primary = await primaryPromise;
+    for (const [t, c] of authScanLines(primary)) { scanLine(t, c); await pause(140); }
+
+    scanLine('$ sweeping for lookalike sending domains', 'cmd');
+    await pause(320);
+    const brand = domain.replace(/\.[a-z.]+$/i, '');
+    const candidates = [
+      `get${brand}.com`, `try${brand}.com`, `${brand}hq.com`,
+      `${brand}.io`, `${brand}.co`, `${brand}.net`
+    ].filter(c => c !== domain);
+    const probes = await Promise.all(candidates.map(async c => {
+      const resp = await dnsQuery(c, 'MX');
+      return { c, hit: mxRecords(resp).length > 0 };
+    }));
+    const pad = Math.max(...candidates.map(c => c.length)) + 3;
     const kept = new Set(S.satellites.filter(s => !s.removed).map(s => s.domain));
     const removed = new Set(S.satellites.filter(s => s.removed).map(s => s.domain));
-    found.forEach(d => { if (!kept.has(d) && !removed.has(d)) S.satellites.push({ domain: d, removed: false }); });
+    for (const p of probes) {
+      scanLine('  ' + p.c.padEnd(pad) + (p.hit ? 'mail server found' : 'no mail'), p.hit ? 'ok' : 'dim');
+      if (p.hit && !kept.has(p.c) && !removed.has(p.c)) S.satellites.push({ domain: p.c, removed: false });
+      await pause(150);
+    }
 
-    const toCheck = [domain, ...S.satellites.filter(s => !s.removed).map(s => s.domain)];
-    const authResults = await Promise.all(toCheck.map(d => checkAuth(d, S.customSelector)));
+    const sats = S.satellites.filter(s => !s.removed).map(s => s.domain);
+    let satResults = [];
+    if (sats.length) {
+      scanLine('$ checking ' + sats.length + ' more domain' + (sats.length > 1 ? 's' : ''), 'cmd');
+      const satPromise = Promise.all(sats.map(d => checkAuth(d, S.customSelector)));
+      await pause(400);
+      satResults = await satPromise;
+      for (const r of satResults) {
+        const bits = ['SPF ' + (r.spf ? 'ok' : 'PROBLEM'), 'DKIM ' + (r.dkim ? 'ok' : 'not observed'), 'DMARC ' + (r.dmarc ? 'ok' : 'PROBLEM')];
+        scanLine('  ' + r.domain.padEnd(pad) + bits.join(' · '), (!r.spf || !r.dmarc) ? 'warn' : 'ok');
+        await pause(160);
+      }
+    }
+
+    const authResults = [primary, ...satResults];
     S.auth = { checkedAt: new Date().toISOString(), domains: authResults };
     S.stack = detectStack(authResults);
-
     if (!S.cards.blocklists) S.cards.blocklists = {};
+
+    const broken = authResults.filter(d => !d.spf || !d.dmarc).length;
+    scanLine('done · ' + authResults.length + ' domain' + (authResults.length > 1 ? 's' : '') + ' checked · '
+      + (broken ? broken + ' with auth problems' : 'auth records pass'), broken ? 'warn' : 'ok');
+    await pause(1400);
+    scanHide();
 
     save();
     render();
   } catch (e) {
+    scanHide();
     toast('The check failed. Your network may block DNS-over-HTTPS. Try again.');
   } finally {
     btn.disabled = false;
@@ -1214,8 +1341,25 @@ function renderHeader() {
   }
 }
 
+function renderChecklist() {
+  const el = document.getElementById('buildList');
+  const st = realCardStatus();
+  const items = [
+    { label: 'Domain check', hint: 'automatic, runs when you enter a domain', done: !!S.auth },
+    { label: 'Blocklists', hint: '2 min, lookup links on the card', done: st.blocklists },
+    { label: 'Sending tool', hint: 'bounce rate, per-mailbox bounces, daily volume', done: st.list && st.mailboxes && st.sending },
+    { label: 'Google Postmaster', hint: 'spam rate and reputation', done: !!(st.provider || st.providerUnavailable) },
+    { label: 'A recent email', hint: 'links, images, tracking', done: st.content }
+  ];
+  el.innerHTML = items.map((it, i) => `<div class="bl-item${it.done ? ' done' : ''}">
+    <span class="bl-mark">${it.done ? '✓' : i + 1}</span>
+    <span><span class="bl-label">${it.label}</span><span class="bl-hint">${it.hint}</span></span>
+  </div>`).join('');
+}
+
 function render() {
   renderHeader();
+  renderChecklist();
   renderVerdict();
   renderTrend();
   renderProvider();
