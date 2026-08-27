@@ -10,7 +10,7 @@ export CLOUDFLARE_ACCOUNT_ID=$(grep '^CLOUDFLARE_ACCOUNT_ID=' ~/.env | cut -d= -
 # Publish only the page itself.
 rm -rf .cf-dist
 mkdir .cf-dist
-cp index.html .cf-dist/
+cp index.html og.png .cf-dist/
 
 # Hosted copy gets Cloudflare Web Analytics (cookieless visit counting).
 # The repo's index.html stays clean so self-hosters get zero tracking.
