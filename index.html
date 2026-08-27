@@ -81,8 +81,30 @@
   }
   .domain-form button:hover { background: #c8f53a; }
   .domain-form button:disabled { opacity: 0.5; cursor: default; }
-  .tagline { font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
-  .tagline a { color: var(--ink-soft); }
+  .trustline { font-size: 12px; color: var(--ink-faint); margin: 2px 0 14px; }
+
+  /* raw records disclosure */
+  .raw { margin-top: 9px; }
+  .raw summary {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    cursor: pointer;
+    user-select: none;
+  }
+  .raw summary:hover { color: var(--ink); }
+  .raw-rec {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+    background: #f7f7f7;
+    border-radius: 6px;
+    padding: 7px 9px;
+    margin: 6px 0 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.55;
+  }
 
   /* ---------- scan log ---------- */
   .scan {
@@ -492,6 +514,7 @@
       <button type="submit" id="checkBtn">Check my domain</button>
     </form>
   </div>
+  <p class="trustline">Runs entirely in your browser. The check sends DNS lookups to Cloudflare and Google public resolvers, like any DNS lookup. Nothing else leaves this tab.</p>
 
   <div class="scan" id="scan" role="status" aria-live="polite"></div>
 
@@ -501,6 +524,7 @@
     <div class="dash-bar"><span>email health</span><span id="barRight">updated by you</span></div>
     <div class="grid" id="grid">
 
+
       <div class="card" id="card-verdict">
         <div class="card-head"><span class="card-h">Verdict</span><span class="chip">computes itself</span></div>
         <div class="card-body" id="body-verdict"></div>
@@ -509,6 +533,77 @@
           <span></span>
         </div>
       </div>
+
+
+      <div class="card" id="card-auth">
+        <div class="card-head"><span class="card-h">Domain auth</span><span class="chip">automatic</span></div>
+        <div class="card-body" id="body-auth"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth" target="_blank" rel="noopener" data-tip="Add missing SPF, DKIM, or DMARC records at your DNS provider. DMARC reports should be sent to a monitored inbox.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="auth">dkim selector</button>
+        </div>
+      </div>
+
+
+      <div class="card" id="card-blocklists">
+        <div class="card-head"><span class="card-h">Blocklists</span><span class="chip">2 min, no access needed</span></div>
+        <div class="card-body" id="body-blocklists"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists" target="_blank" rel="noopener" data-tip="If a domain is listed, follow that blocklist's removal process before making other changes.">how to fix &#8599;</a>
+          <span></span>
+        </div>
+      </div>
+
+
+      <div class="card" id="card-list">
+        <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-list"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify email addresses before sending and remove addresses that fail verification. Bounce rate falls as invalid addresses leave the list.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="list">+ enter yours</button>
+        </div>
+      </div>
+
+
+      <div class="card" id="card-mailboxes">
+        <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-mailboxes"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Identify mailboxes with high bounce rates, remove the invalid addresses they emailed, and reduce their sending until rates recover.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="mailboxes">+ enter yours</button>
+        </div>
+      </div>
+
+
+      <div class="card compact" id="card-sending">
+        <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
+        <div class="card-body" id="body-sending"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Lower sends per mailbox per day and spread sending across the week. Around 50 per day per mailbox is a common ceiling.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="sending">+ enter yours</button>
+        </div>
+      </div>
+
+
+      <div class="card" id="card-provider">
+        <div class="card-head"><span class="card-h">Provider verdict</span><span class="chip">needs Google Postmaster</span></div>
+        <div class="card-body" id="body-provider"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict" target="_blank" rel="noopener" data-tip="There is no direct fix for this number. It improves as the other cards improve. Set up Google Postmaster Tools to track it.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="provider">+ enter yours</button>
+        </div>
+      </div>
+
+
+      <div class="card compact" id="card-content">
+        <div class="card-head"><span class="card-h">Email content</span><span class="chip">2 min, needs a recent email</span></div>
+        <div class="card-body" id="body-content"></div>
+        <div class="card-foot">
+          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content" target="_blank" rel="noopener" data-tip="Use plain text with at most one link. Disable open and click tracking on cold outreach.">how to fix &#8599;</a>
+          <button class="edit-link" data-pop="content">+ enter yours</button>
+        </div>
+      </div>
+
 
       <div class="card" id="card-trend">
         <div class="card-head"><span class="card-h">Bounce trend</span><span class="chip">one point per check-in</span></div>
@@ -520,68 +615,6 @@
         </div>
       </div>
 
-      <div class="card" id="card-provider">
-        <div class="card-head"><span class="card-h">Provider verdict</span><span class="chip">needs Google Postmaster</span></div>
-        <div class="card-body" id="body-provider"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#provider-verdict" target="_blank" rel="noopener" data-tip="There is no direct fix for this number. It improves as the other cards improve. Set up Google Postmaster Tools to track it.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="provider">+ enter yours</button>
-        </div>
-      </div>
-
-      <div class="card" id="card-auth">
-        <div class="card-head"><span class="card-h">Domain auth</span><span class="chip">automatic</span></div>
-        <div class="card-body" id="body-auth"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#domain-auth" target="_blank" rel="noopener" data-tip="Add missing SPF, DKIM, or DMARC records at your DNS provider. DMARC reports should be sent to a monitored inbox.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="auth">dkim selector</button>
-        </div>
-      </div>
-
-      <div class="card" id="card-mailboxes">
-        <div class="card-head"><span class="card-h">Bounces by mailbox</span><span class="chip">needs your sending tool</span></div>
-        <div class="card-body" id="body-mailboxes"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#mailbox-health" target="_blank" rel="noopener" data-tip="Identify mailboxes with high bounce rates, remove the invalid addresses they emailed, and reduce their sending until rates recover.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="mailboxes">+ enter yours</button>
-        </div>
-      </div>
-
-      <div class="card" id="card-list">
-        <div class="card-head"><span class="card-h">List health</span><span class="chip">needs your sending tool</span></div>
-        <div class="card-body" id="body-list"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#list-health" target="_blank" rel="noopener" data-tip="Verify email addresses before sending and remove addresses that fail verification. Bounce rate falls as invalid addresses leave the list.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="list">+ enter yours</button>
-        </div>
-      </div>
-
-      <div class="card compact" id="card-blocklists">
-        <div class="card-head"><span class="card-h">Blocklists</span><span class="chip">2 min, no access needed</span></div>
-        <div class="card-body" id="body-blocklists"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#blocklists" target="_blank" rel="noopener" data-tip="If a domain is listed, follow that blocklist's removal process before making other changes.">how to fix &#8599;</a>
-          <span></span>
-        </div>
-      </div>
-
-      <div class="card compact" id="card-sending">
-        <div class="card-head"><span class="card-h">Sending behavior</span><span class="chip">needs your sending tool</span></div>
-        <div class="card-body" id="body-sending"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#sending-behavior" target="_blank" rel="noopener" data-tip="Lower sends per mailbox per day and spread sending across the week. Around 50 per day per mailbox is a common ceiling.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="sending">+ enter yours</button>
-        </div>
-      </div>
-
-      <div class="card compact" id="card-content">
-        <div class="card-head"><span class="card-h">Email content</span><span class="chip">2 min, needs a recent email</span></div>
-        <div class="card-body" id="body-content"></div>
-        <div class="card-foot">
-          <a class="fix-link" href="https://chris-as-is.com/projects/spam-jail#email-content" target="_blank" rel="noopener" data-tip="Use plain text with at most one link. Disable open and click tracking on cold outreach.">how to fix &#8599;</a>
-          <button class="edit-link" data-pop="content">+ enter yours</button>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -735,8 +768,10 @@ async function checkAuth(domain, customSelector) {
     notes.push('no SPF record');
   }
 
+  result.dkimProbed = selectors;
   if (dmarcRecs.length) {
     result.dmarc = true;
+    result.dmarcRaw = dmarcRecs[0];
     const d = dmarcRecs[0];
     const p = (d.match(/;\s*p\s*=\s*(\w+)/i) || [])[1];
     const sp = (d.match(/sp\s*=\s*(\w+)/i) || [])[1];
@@ -963,24 +998,24 @@ function computeVerdict() {
     .filter(k => st[k]).length + (st.providerUnavailable ? 1 : 0);
 
   const missing = [];
-  if (!st.auth) missing.push('no domain check yet');
-  if (!st.provider && !st.providerUnavailable) missing.push('no provider data yet');
-  if (!st.list) missing.push('no bounce rate yet');
-  if (!st.blocklists) missing.push('blocklists unchecked');
-  if (!st.mailboxes) missing.push('no mailbox data yet');
-  if (!st.sending) missing.push('no sending numbers yet');
-  if (!st.content) missing.push('content unchecked');
+  if (!st.auth) missing.push('domain check');
+  if (!st.blocklists) missing.push('blocklists');
+  if (!st.list) missing.push('bounce rate');
+  if (!st.mailboxes) missing.push('mailbox data');
+  if (!st.sending) missing.push('sending volume');
+  if (!st.provider && !st.providerUnavailable) missing.push('provider data');
+  if (!st.content) missing.push('email content');
 
-  if (realCount < 4) {
+  // Grade whatever is real, the moment anything is. Never gate the payoff.
+  if (!realCount) {
     return { ready: false, realCount, missing };
   }
 
   const issues = [];
   let severe = false;
   if (st.auth) {
-    S.auth.domains.forEach(d => {
-      if (!d.spf || !d.dmarc) issues.push(`auth broken on ${d.domain}`);
-    });
+    const brokenDoms = S.auth.domains.filter(d => !d.spf || !d.dmarc).map(d => d.domain);
+    if (brokenDoms.length) issues.push(`Auth broken on ${brokenDoms.join(', ')}`);
   }
   if (st.blocklists) {
     Object.entries(S.cards.blocklists).forEach(([dom, v]) => {
@@ -1007,10 +1042,15 @@ function computeVerdict() {
     if (flags >= 2) issues.push('content has spam signals');
   }
 
+  const authBroken = st.auth ? S.auth.domains.filter(d => !d.spf || !d.dmarc) : [];
+  const listed = st.blocklists && Object.values(S.cards.blocklists).includes('listed');
+
   let big, tier;
-  if (severe || issues.length >= 3) { big = 'In trouble'; tier = 'bad'; }
+  if (listed) { big = 'On a blocklist'; tier = 'bad'; }
+  else if (severe || issues.length >= 3) { big = 'In trouble'; tier = 'bad'; }
+  else if (authBroken.length) { big = authBroken.length + ' domain' + (authBroken.length > 1 ? 's' : '') + ' failing auth'; tier = 'warn'; }
   else if (issues.length) { big = 'Needs attention'; tier = 'warn'; }
-  else { big = 'Looking healthy'; tier = 'ok'; }
+  else { big = realCount >= 4 ? 'Looking healthy' : 'No red flags yet'; tier = 'ok'; }
 
   return { ready: true, realCount, missing, issues, big, tier };
 }
@@ -1020,17 +1060,17 @@ function renderVerdict() {
   const v = computeVerdict();
   if (!v.ready) {
     setTag('card-verdict', true);
-    const entered = v.realCount;
     el.innerHTML = `<div class="big">${EXAMPLE.verdict.big}</div>
       <div class="sub">${EXAMPLE.verdict.sub}</div>
-      <div class="sub" style="color:var(--ink-faint)">Yours computes once 4 cards hold real data. ${entered ? entered + ' so far.' : ''}</div>`;
+      <div class="sub" style="color:var(--ink-faint)">Enter your domain up top and this starts computing.</div>`;
     return;
   }
   setTag('card-verdict', false);
   const parts = [];
+  if (v.realCount < 4) parts.push(`Early read from ${v.realCount} of 7 cards.`);
   if (v.issues.length) parts.push(v.issues.slice(0, 3).map(esc).join('. ') + '.');
-  else parts.push('No red flags in the data entered. Green auth means passing records, not inbox placement.');
-  if (v.missing.length) parts.push(`<span style="color:var(--ink-faint)">Still missing: ${esc(v.missing.slice(0, 2).join(', '))}.</span>`);
+  else parts.push('No red flags in the data so far. Passing DNS records do not guarantee inbox placement.');
+  if (v.missing.length) parts.push(`<span style="color:var(--ink-faint)">Unchecked: ${esc(v.missing.slice(0, 3).join(', '))}${v.missing.length > 3 ? ' + ' + (v.missing.length - 3) + ' more' : ''}.</span>`);
   el.innerHTML = `<div class="big">${v.big}</div><div class="sub">${parts.join('<br>')}</div>`;
 }
 
@@ -1173,8 +1213,19 @@ function renderAuth() {
     const parts = [S.stack.label, ...(S.stack.tools || [])].filter(Boolean);
     stackLine = `<div class="sub">Detected stack: ${esc(parts.join(', '))}. Instructions in the other cards follow this.</div>`;
   }
+  const rawBlocks = S.auth.domains.map(d => {
+    const dkimLine2 = d.dkim
+      ? `DKIM:  found on selector "${d.dkimSelector}"`
+      : `DKIM:  no record on probed selectors: ${(d.dkimProbed || []).join(', ')}`;
+    return `<div class="raw-rec">${esc(d.domain)}
+MX:    ${esc((d.mxHosts || []).join(', ') || 'no record')}
+SPF:   ${esc(d.spfRaw || 'no record')}
+DMARC: ${esc(d.dmarcRaw || 'no record')}
+${esc(dkimLine2)}</div>`;
+  }).join('');
   el.innerHTML = `<table class="auth-table">${rows}</table>${stackLine}
-    <div class="sub" style="color:var(--ink-faint)">${sweepNote} Re-checked ${new Date(S.auth.checkedAt).toLocaleDateString()}.</div>`;
+    <div class="sub" style="color:var(--ink-faint)">${sweepNote} Re-checked ${new Date(S.auth.checkedAt).toLocaleDateString()}.</div>
+    <details class="raw"><summary>raw records (verify with dig yourself)</summary>${rawBlocks}</details>`;
   el.querySelectorAll('[data-rmsat]').forEach(btn => {
     btn.addEventListener('click', () => {
       const dom = btn.dataset.rmsat;
